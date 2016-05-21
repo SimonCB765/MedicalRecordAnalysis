@@ -131,10 +131,8 @@ def main(fileParams):
     fileBinarySumOverTime = os.path.join(dirResults, "CountsSummedOverTime_Binary.tsv")
     fileCountSumOverTimeRebased = os.path.join(dirResults, "CountsSummedOverTime_Rebased.tsv")
     fileBinarySumOverTimeRebased = os.path.join(dirResults, "CountsSummedOverTime_Rebased_Binary.tsv")
-    fileCountPerTimePoint = os.path.join(dirResults, "CountsPerTimePoint.tsv")
-    fileBinaryPerTimePoint = os.path.join(dirResults, "CountsPerTimePoint_Binary.tsv")
-    fileCountPerTimePointRebased = os.path.join(dirResults, "CountsPerTimePoint_Rebased.tsv")
-    fileBinaryPerTimePointRebased = os.path.join(dirResults, "CountsPerTimePoint_Rebased_Binary.tsv")
+    fileCodesPerTimePoint = os.path.join(dirResults, "CodesPerTimePoint.tsv")
+    fileCodesPerTimePointRebased = os.path.join(dirResults, "CodesPerTimePoint_Rebased.tsv")
 
     # Record the different representations of the patient histories.
     with open(fileCountMatrix, 'w') as fidCountMatrix, \
@@ -142,10 +140,8 @@ def main(fileParams):
             open(fileBinarySumOverTime, 'w') as fidBinarySumOverTime, \
             open(fileCountSumOverTimeRebased, 'w') as fidCountSumOverTimeRebased, \
             open(fileBinarySumOverTimeRebased, 'w') as fidBinarySumOverTimeRebased, \
-            open(fileCountPerTimePoint, 'w') as fidCountPerTimePoint, \
-            open(fileBinaryPerTimePoint, 'w') as fidBinaryPerTimePoint, \
-            open(fileCountPerTimePointRebased, 'w') as fidCountPerTimePointRebased, \
-            open(fileBinaryPerTimePointRebased, 'w') as fidBinaryPerTimePointRebased:
+            open(fileCodesPerTimePoint, 'w') as fidCodesPerTimePoint, \
+            open(fileCodesPerTimePointRebased, 'w') as fidCodesPerTimePointRebased:
         # Write out the headers.
         separatedCounts = '\t'.join(uniqueCodes)
         countMatrixHeader = "PatientID\tDOB\tMale\t{0:s}\n".format(separatedCounts)
@@ -153,14 +149,12 @@ def main(fileParams):
         sumOverTimeHeader = "PatientID\tDOB\tMale\tDate\t{0:s}\n".format(separatedCounts)
         fidCountSumOverTime.write(sumOverTimeHeader)
         fidBinarySumOverTime.write(sumOverTimeHeader)
-        fidCountPerTimePoint.write(sumOverTimeHeader)
-        fidBinaryPerTimePoint.write(sumOverTimeHeader)
+        fidCodesPerTimePoint.write(sumOverTimeHeader)
         rebasedSumOverTimeHeader = "PatientID\tDOB\tMale\tDaysAfterJan_{0:s}\t{1:s}\n".format(
             rebaseYear.strftime("%Y"), separatedCounts)
         fidCountSumOverTimeRebased.write(rebasedSumOverTimeHeader)
         fidBinarySumOverTimeRebased.write(rebasedSumOverTimeHeader)
-        fidCountPerTimePointRebased.write(rebasedSumOverTimeHeader)
-        fidBinaryPerTimePointRebased.write(rebasedSumOverTimeHeader)
+        fidCodesPerTimePointRebased.write(rebasedSumOverTimeHeader)
 
         # Generate each patient's code vector(s).
         for patientID in sorted(patientHistories):
@@ -204,22 +198,15 @@ def main(fileParams):
                     daysAfterYear0.days, '\t'.join(['1' if sumCodeCounts[i] > 0 else '0' for i in uniqueCodes])))
 
                 # Write out the patient's medical history for this date in both count and binary formats.
-                fidCountPerTimePoint.write("{0:s}\t{1:s}\t{2:s}\t{3:s}\t{4:s}\n".format(
+                fidCodesPerTimePoint.write("{0:s}\t{1:s}\t{2:s}\t{3:s}\t{4:s}\n".format(
                     patientID, patientDemographics[patientID]["DOB"], patientDemographics[patientID]["Male"],
                     i.strftime("%Y-%m-%d"), '\t'.join([str(timePointCounts[i]) for i in uniqueCodes])))
-                fidBinaryPerTimePoint.write("{0:s}\t{1:s}\t{2:s}\t{3:s}\t{4:s}\n".format(
-                    patientID, patientDemographics[patientID]["DOB"], patientDemographics[patientID]["Male"],
-                    i.strftime("%Y-%m-%d"),
-                    '\t'.join(['1' if timePointCounts[i] > 0 else '0' for i in uniqueCodes])))
 
                 # Write out the patient's medical history for this date in both count and binary formats
                 # after rebasing the year.
-                fidCountPerTimePointRebased.write("{0:s}\t{1:s}\t{2:s}\t{3:d}\t{4:s}\n".format(
+                fidCodesPerTimePointRebased.write("{0:s}\t{1:s}\t{2:s}\t{3:d}\t{4:s}\n".format(
                     patientID, patientDemographics[patientID]["DOB"], patientDemographics[patientID]["Male"],
                     daysAfterYear0.days, '\t'.join([str(timePointCounts[i]) for i in uniqueCodes])))
-                fidBinaryPerTimePointRebased.write("{0:s}\t{1:s}\t{2:s}\t{3:d}\t{4:s}\n".format(
-                    patientID, patientDemographics[patientID]["DOB"], patientDemographics[patientID]["Male"],
-                    daysAfterYear0.days, '\t'.join(['1' if timePointCounts[i] > 0 else '0' for i in uniqueCodes])))
 
             # Write out the vector for the counts of all codes in the patient's history.
             fidCountMatrix.write("{0:s}\t{1:s}\t{2:s}\t{3:s}\n".format(
