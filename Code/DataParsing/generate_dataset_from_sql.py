@@ -3,6 +3,7 @@
 # Python imports.
 from collections import defaultdict
 import json
+import numbers
 import os
 import re
 import sys
@@ -22,6 +23,9 @@ def main(fileParams):
 
     """
 
+    #-------------------------------------#
+    # Parse and Validate Input Parameters #
+    #-------------------------------------#
     # Parse the JSON file of parameters.
     readParams = open(fileParams, 'r')
     parsedArgs = json.load(readParams)
@@ -45,6 +49,14 @@ def main(fileParams):
         # Directory already exists.
         pass
 
+    # Check that the rebase year is correct (if present).
+    rebaseYear = 1950
+    if "Year0" in parsedArgs:
+        if not isinstance(parsedArgs["Year0"], numbers.Integral):
+            errorsFound.append("The Year0 parameter must be an integer.")
+        else:
+            rebaseYear = parsedArgs["Year0"]
+
     # Print error messages.
     if errorsFound:
         print("\n\nThe following errors were encountered while parsing the input parameters:\n")
@@ -64,6 +76,9 @@ def main(fileParams):
     count = 0
 
 
+    #--------------------------------------#
+    # Extract the Data from the SQL Files  #
+    #--------------------------------------#
     # Extract the information about each patient's history. The history for each patient will be a string containing
     # all code association concatenated together. For each sasociation the code and date of assocaition are separated
     # by a comma, while the differetn assocaitions are separated by a ';'. For example:
@@ -106,8 +121,13 @@ def main(fileParams):
                 isMale = chunks[3]
                 patientDemographics[patientID] = {"DOB": DOB, "Male": isMale}  # Records patient's demographics.
 
+    #--------------------------------------------#
+    # Create the Different Patient History Views #
+    #--------------------------------------------#
     # Setup the cleaned dataset files.
     fileCountMatrix = os.path.join(dirResults, "CountMatrix.tsv")
+    fileCountHistory = os.path.join(dirResults, "CountHistory.tsv")
+    fileRebasedHistory = os.path.join(dirResults, "RebasedHistory.tsv")
 
     # Record the simple patient history matrix.
     with open(fileCountMatrix, 'w') as fidCountMatrix:
