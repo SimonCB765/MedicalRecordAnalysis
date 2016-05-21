@@ -4,7 +4,6 @@
 from collections import defaultdict
 import datetime
 import json
-import numbers
 import os
 import re
 import sys
@@ -166,12 +165,12 @@ def main(fileParams):
             sortedDates = sorted(codesAtTimePoint)
 
             # Determine the code counts for each representation of the history.
-            sumCodeCounts = dict([(i, 0) for i in uniqueCodes])  # The cumulative cont of codes seen to this time point.
+            sumCodeCounts = dict([(i, 0) for i in uniqueCodes])  # Cumulative count of codes seen up to this time point.
             for i in sortedDates:
                 for j in codesAtTimePoint[i]:
                     sumCodeCounts[j] += 1
 
-                    # Write out the patient's current cumulative medical history in both cont and binary formats.
+                    # Write out the patient's current cumulative medical history in both count and binary formats.
                     fidCountSumOverTime.write("{0:s}\t{1:s}\t{2:s}\t{3:s}\t{4:s}\n".format(
                         patientID, patientDemographics[patientID]["DOB"], patientDemographics[patientID]["Male"],
                         i.strftime("%Y-%m-%d"), '\t'.join([str(sumCodeCounts[i]) for i in uniqueCodes])))
@@ -179,7 +178,7 @@ def main(fileParams):
                         patientID, patientDemographics[patientID]["DOB"], patientDemographics[patientID]["Male"],
                         i.strftime("%Y-%m-%d"), '\t'.join(['1' if sumCodeCounts[i] > 0 else '0' for i in uniqueCodes])))
 
-                    # Write out the patient's current cumulative medical history in both cont and binary formats
+                    # Write out the patient's current cumulative medical history in both count and binary formats
                     # after rebasing the year.
                     daysAfterYear0 = i - rebaseYear
                     fidCountSumOverTimeRebased.write("{0:s}\t{1:s}\t{2:s}\t{3:d}\t{4:s}\n".format(
