@@ -51,12 +51,13 @@ def main(fileParams):
         pass
 
     # Check that the rebase year is correct (if present).
-    rebaseYear = 1950
-    if "Year0" in parsedArgs:
-        if not isinstance(parsedArgs["Year0"], numbers.Integral):
-            errorsFound.append("The Year0 parameter must be an integer.")
-        else:
-            rebaseYear = parsedArgs["Year0"]
+    rebaseYear = datetime.datetime.strptime("1950", "%Y")
+    try:
+        rebaseYear = datetime.datetime.strptime(parsedArgs["Year0"], "%Y")
+    except ValueError:
+        # There was a problem creating the rebase year datetime object.
+        errorsFound.append(
+            "Could not convert rebase year {0:s} into a YYYY format year.".format(parsedArgs["Year0"]))
 
     # Print error messages.
     if errorsFound:
@@ -129,10 +130,14 @@ def main(fileParams):
     fileCountMatrix = os.path.join(dirResults, "CountMatrix.tsv")
     fileCountSumOverTime = os.path.join(dirResults, "CountsSummedOverTime.tsv")
     fileBinarySumOverTime = os.path.join(dirResults, "CountsSummedOverTime_Binary.tsv")
+    fileCountSumOverTimeRebased = os.path.join(dirResults, "CountsSummedOverTime_Rebased.tsv")
+    fileBinarySumOverTimeRebased = os.path.join(dirResults, "CountsSummedOverTime_Rebased_Binary.tsv")
 
     # Record the different representations of the patient histories.
     with open(fileCountMatrix, 'w') as fidCountMatrix, open(fileCountSumOverTime, 'w') as fidCountSumOverTime, \
-            open(fileBinarySumOverTime, 'w') as fidBinarySumOverTime:
+            open(fileBinarySumOverTime, 'w') as fidBinarySumOverTime, \
+            open(fileCountSumOverTimeRebased, 'w') as fidCountSumOverTimeRebased, \
+            open(fileBinarySumOverTimeRebased, 'w') as fidBinarySumOverTimeRebased:
         # Write out the headers.
         separatedCounts = '\t'.join(uniqueCodes)
         countMatrixHeader = "PatientID\tDOB\tMale\t{0:s}\n".format(separatedCounts)
@@ -140,6 +145,10 @@ def main(fileParams):
         sumOverTimeHeader = "PatientID\tDOB\tMale\tDate\t{0:s}\n".format(separatedCounts)
         fidCountSumOverTime.write(sumOverTimeHeader)
         fidBinarySumOverTime.write(sumOverTimeHeader)
+        rebasedSumOverTimeHeader = "PatientID\tDOB\tMale\tDaysAfterJan_{0:s}\t{1:s}\n".format(
+            rebaseYear.strftime("%Y"), separatedCounts)
+        fidCountSumOverTimeRebased.write(rebasedSumOverTimeHeader)
+        fidBinarySumOverTimeRebased.write(rebasedSumOverTimeHeader)
 
         # Generate each patient's code vector(s).
         for patientID in sorted(patientHistories):
@@ -162,13 +171,23 @@ def main(fileParams):
                 for j in codesAtTimePoint[i]:
                     sumCodeCounts[j] += 1
 
-                    # Write out the patient's current cumulative mdeical history in both cont and binary formats.
+                    # Write out the patient's current cumulative medical history in both cont and binary formats.
                     fidCountSumOverTime.write("{0:s}\t{1:s}\t{2:s}\t{3:s}\t{4:s}\n".format(
                         patientID, patientDemographics[patientID]["DOB"], patientDemographics[patientID]["Male"],
                         i.strftime("%Y-%m-%d"), '\t'.join([str(sumCodeCounts[i]) for i in uniqueCodes])))
                     fidBinarySumOverTime.write("{0:s}\t{1:s}\t{2:s}\t{3:s}\t{4:s}\n".format(
                         patientID, patientDemographics[patientID]["DOB"], patientDemographics[patientID]["Male"],
                         i.strftime("%Y-%m-%d"), '\t'.join(['1' if sumCodeCounts[i] > 0 else '0' for i in uniqueCodes])))
+
+                    # Write out the patient's current cumulative medical history in both cont and binary formats
+                    # after rebasing the year.
+                    daysAfterYear0 = i - rebaseYear
+                    fidCountSumOverTimeRebased.write("{0:s}\t{1:s}\t{2:s}\t{3:d}\t{4:s}\n".format(
+                        patientID, patientDemographics[patientID]["DOB"], patientDemographics[patientID]["Male"],
+                        daysAfterYear0.days, '\t'.join([str(sumCodeCounts[i]) for i in uniqueCodes])))
+                    fidBinarySumOverTimeRebased.write("{0:s}\t{1:s}\t{2:s}\t{3:d}\t{4:s}\n".format(
+                        patientID, patientDemographics[patientID]["DOB"], patientDemographics[patientID]["Male"],
+                        daysAfterYear0.days, '\t'.join(['1' if sumCodeCounts[i] > 0 else '0' for i in uniqueCodes])))
 
 
             # Write out the vector for the counts of all codes in the patient's history.
