@@ -2,6 +2,7 @@
 
 # Python imports.
 from collections import defaultdict
+import datetime
 import json
 import numbers
 import os
@@ -100,7 +101,7 @@ def main(fileParams):
                 uniqueCodes.add(code)
 
                 count += 1
-                if count > 10000:
+                if count > 1000:
                     break
     uniqueCodes = sorted(uniqueCodes)
 
@@ -121,30 +122,40 @@ def main(fileParams):
                 isMale = chunks[3]
                 patientDemographics[patientID] = {"DOB": DOB, "Male": isMale}  # Records patient's demographics.
 
-    #--------------------------------------------#
-    # Create the Different Patient History Views #
-    #--------------------------------------------#
+    #------------------------------------------------------#
+    # Create the Different Patient History Representations #
+    #------------------------------------------------------#
     # Setup the cleaned dataset files.
     fileCountMatrix = os.path.join(dirResults, "CountMatrix.tsv")
-    fileCountHistory = os.path.join(dirResults, "CountHistory.tsv")
-    fileRebasedHistory = os.path.join(dirResults, "RebasedHistory.tsv")
 
-    # Record the simple patient history matrix.
+    # Record the different representations of the patient histories.
     with open(fileCountMatrix, 'w') as fidCountMatrix:
-        # Write out the header.
-        header = "PatientID\tDOB\tMale\t{0:s}\n".format('\t'.join(uniqueCodes))
-        fidCountMatrix.write(header)
+        # Write out the headers.
+        countMatrixHeader = "PatientID\tDOB\tMale\t{0:s}\n".format('\t'.join(uniqueCodes))
+        fidCountMatrix.write(countMatrixHeader)
 
-        # Generate each patient's code vector.
-        for patientID in patientHistories:
-            codeCounts = dict([(i, 0) for i in uniqueCodes])  # Setup the record of the counts of each code.
+        # Generate each patient's code vector(s).
+        for patientID in sorted(patientHistories):
             history = patientHistories[patientID].split(';')[:-1]  # Strip off final ';' from the history string.
-            for i in history:
-                # For each code association, update the count of the codes this patient is associated with.
-                i = i.split(',')  # Split the code from the date.
-                codeCounts[i[0]] += 1
 
-            # Write out the patient history vector.
+            # Determine the codes that were assigned at each time point.
+            codesAtTimePoint = defaultdict(list)
+            for i in history:
+                # For each code association, record that the time point was associated with the code.
+                code, date = i.split(',')  # Split the code from the date.
+                date = datetime.datetime.strptime(date, "%Y-%m-%d")  # Convert YYYY-MM-DD date to datetime object.
+                codesAtTimePoint[date].append(code)
+
+            # Sort the dates when a patient was associated with a code in order from oldest to newest.
+            sortedDates = sorted(codesAtTimePoint)
+
+            # Determine the code counts for each representation of the history.
+            sumCodeCounts = dict([(i, 0) for i in uniqueCodes])  # The cumulative cont of codes seen to this time point.
+            for i in sortedDates:
+                for j in codesAtTimePoint[i]:
+                    sumCodeCounts[j] += 1
+
+            # Write out the vector for the counts of all codes in the patient's history.
             fidCountMatrix.write("{0:s}\t{1:s}\t{2:s}\t{3:s}\n".format(
                 patientID, patientDemographics[patientID]["DOB"], patientDemographics[patientID]["Male"],
-                '\t'.join([str(codeCounts[i]) for i in uniqueCodes])))
+                '\t'.join([str(sumCodeCounts[i]) for i in uniqueCodes])))
