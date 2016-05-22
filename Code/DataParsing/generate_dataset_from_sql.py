@@ -86,6 +86,7 @@ def main(fileParams):
     # by a comma, while the differetn assocaitions are separated by a ';'. For example:
     #   DOCA4868,1989-06-05;DOCA4868,1990-01-18;H03,1995-01-11;
     patientHistories = defaultdict(str)
+    patientEGFRs = defaultdict(list)
     uniqueCodes = set()
     with open(fileJournalTable, 'r') as fidJournalTable:
         for line in fidJournalTable:
@@ -101,8 +102,14 @@ def main(fileParams):
                 patientHistories[patientID] += "{0:s},{1:s};".format(code, date)  # Append new code association.
                 uniqueCodes.add(code)
 
+                # Extract eGFR values.
+                if code in ["451E", "451F", "451G"]:
+                    # If the code is an eGFR code, then record the value along with the association.
+                    patientEGFRs[patientID].append({"Code": code, "Date": date, "Value": chunks[3]})
+
+                #TODO remove this
                 count += 1
-                if count > 1000:
+                if count > 10000:
                     break
     uniqueCodes = sorted(uniqueCodes)
 
@@ -170,7 +177,7 @@ def main(fileParams):
         diseaseIndicators = "COPD\tStrokeOrCerebrovascularAccident\tHeartFailure\tIschaemicHeartDiseases\t" \
             "PeripheralVascularDiseases\tTransientIschaemicAttack\tType1Diabetes\tType2Diabetes\tAccidentalFall\t" \
             "Fractures\tProteinuria\tHypertension\tDiabetes"
-        patientHeader = "PatientID\tDOB\tMale\t{0:s}\n".format(diseaseIndicators)
+        patientHeader = "PatientID\tDOB\tMale\teGFR\t{0:s}\n".format(diseaseIndicators)
         fidPatientDetails.write(patientHeader)
 
         # Write out the headers for the generated datasets.
@@ -237,7 +244,16 @@ def main(fileParams):
             fidBinaryMatrix.write("{0:s}\t{1:s}\n".format(
                 patientID, '\t'.join(['1' if sumCodeCounts[i] > 0 else '0' for i in uniqueCodes])))
 
+            # Sort the eGFR values for the patient.
+            eGFRMeasurements = []
+            for i in patientEGFRs[patientID]:
+                # For each code association for an eGFR code, record the date and value.
+                date = datetime.datetime.strptime(i["Date"], "%Y-%m-%d")  # Convert YYYY-MM-DD date to datetime object.
+                eGFRMeasurements.append((date, i["Value"]))
+            eGFRMeasurements = sorted(eGFRMeasurements, key=lambda x: x[0])  # Sort in chronological order.
+            eGFRMeasurements = ','.join([i[1] for i in eGFRMeasurements])
+
             # Write out the patient details.
-            fidPatientDetails.write("{0:s}\t{1:s}\t{2:s}\t{3:s}\n".format(
+            fidPatientDetails.write("{0:s}\t{1:s}\t{2:s}\t{3:s}\t{4:s}\n".format(
                 patientID, patientDemographics[patientID]["DOB"], patientDemographics[patientID]["Male"],
-                patientDiseases[patientID]))
+                eGFRMeasurements, patientDiseases[patientID]))
