@@ -71,6 +71,7 @@ def main(fileParams):
     # Get the files for the SQL tables we're interested in. These would be the journal table and the patient table.
     fileJournalTable = os.path.join(dirSQLFiles, "journal.sql")
     filePatientTable = os.path.join(dirSQLFiles, "patient.sql")
+    fileDiseaseTable = os.path.join(dirSQLFiles, "disease.sql")
 
 
     #TODO remove this
@@ -121,6 +122,25 @@ def main(fileParams):
                 DOB = chunks[1]
                 isMale = chunks[3]
                 patientDemographics[patientID] = {"DOB": DOB, "Male": isMale}  # Records patient's demographics.
+
+    # Extract the disease indicator vectors.
+    patientDiseases = {}
+    with open(fileDiseaseTable, 'r') as fidDiseaseTable:
+        for line in fidDiseaseTable:
+            rowEntry = re.match(
+                "insert into `disease`\(`ID`,`COPD`,`StrokeOrCerebrovascularAccident`,`HeartFailure`,"
+                "`IschaemicHeartDiseases`,`PeripheralVascularDiseases`,`TransientIschaemicAttack`,`Type1Diabetes`,"
+                "`Type2Diabetes`,`AccidentalFall`,`Fractures`,`Proteinuria`,`Hypertension`,`Diabetes`\) values \(",
+                line)
+            if rowEntry:
+                # The line contains information about a row in the datanase table.
+                line = line[rowEntry.end():]  # Strip of the SQL insert syntax at the beginning.
+                line = line[:-3]  # Strip off the ");\n" at the end.
+                chunks = line.split(',')
+                patientID = chunks[0]
+                diseases = '\t'.join(chunks[1:])
+                patientDiseases[patientID] = diseases
+
 
     #------------------------------------------------------#
     # Create the Different Patient History Representations #
