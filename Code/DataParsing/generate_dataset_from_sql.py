@@ -127,6 +127,7 @@ def main(fileParams):
     #------------------------------------------------------#
     # Setup the cleaned dataset files.
     fileCountMatrix = os.path.join(dirResults, "CountMatrix.tsv")
+    fileBinaryMatrix = os.path.join(dirResults, "CountMatrix_Binary.tsv")
     fileCountSumOverTime = os.path.join(dirResults, "CountsSummedOverTime.tsv")
     fileBinarySumOverTime = os.path.join(dirResults, "CountsSummedOverTime_Binary.tsv")
     fileCountSumOverTimeRebased = os.path.join(dirResults, "CountsSummedOverTime_Rebased.tsv")
@@ -136,6 +137,7 @@ def main(fileParams):
 
     # Record the different representations of the patient histories.
     with open(fileCountMatrix, 'w') as fidCountMatrix, \
+            open(fileBinaryMatrix, 'w') as fidBinaryMatrix, \
             open(fileCountSumOverTime, 'w') as fidCountSumOverTime, \
             open(fileBinarySumOverTime, 'w') as fidBinarySumOverTime, \
             open(fileCountSumOverTimeRebased, 'w') as fidCountSumOverTimeRebased, \
@@ -146,6 +148,7 @@ def main(fileParams):
         separatedCounts = '\t'.join(uniqueCodes)
         countMatrixHeader = "PatientID\tDOB\tMale\t{0:s}\n".format(separatedCounts)
         fidCountMatrix.write(countMatrixHeader)
+        fidBinaryMatrix.write(countMatrixHeader)
         sumOverTimeHeader = "PatientID\tDOB\tMale\tDate\t{0:s}\n".format(separatedCounts)
         fidCountSumOverTime.write(sumOverTimeHeader)
         fidBinarySumOverTime.write(sumOverTimeHeader)
@@ -208,7 +211,10 @@ def main(fileParams):
                     patientID, patientDemographics[patientID]["DOB"], patientDemographics[patientID]["Male"],
                     daysAfterYear0.days, '\t'.join([str(timePointCounts[i]) for i in uniqueCodes])))
 
-            # Write out the vector for the counts of all codes in the patient's history.
+            # Write out the vector of the counts of all codes in the patient's history in both count and binary formats.
             fidCountMatrix.write("{0:s}\t{1:s}\t{2:s}\t{3:s}\n".format(
                 patientID, patientDemographics[patientID]["DOB"], patientDemographics[patientID]["Male"],
                 '\t'.join([str(sumCodeCounts[i]) for i in uniqueCodes])))
+            fidBinaryMatrix.write("{0:s}\t{1:s}\t{2:s}\t{3:s}\n".format(
+                patientID, patientDemographics[patientID]["DOB"], patientDemographics[patientID]["Male"],
+                '\t'.join(['1' if sumCodeCounts[i] > 0 else '0' for i in uniqueCodes])))
