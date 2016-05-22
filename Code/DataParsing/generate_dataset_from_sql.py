@@ -165,16 +165,19 @@ def main(fileParams):
             open(fileCodesPerTimePoint, 'w') as fidCodesPerTimePoint, \
             open(fileCodesPerTimePointRebased, 'w') as fidCodesPerTimePointRebased:
         # Write out the headers.
+        diseaseIndicators = "COPD\tStrokeOrCerebrovascularAccident\tHeartFailure\tIschaemicHeartDiseases\t" \
+            "PeripheralVascularDiseases\tTransientIschaemicAttack\tType1Diabetes\tType2Diabetes\tAccidentalFall\t" \
+            "Fractures\tProteinuria\tHypertension\tDiabetes"
         separatedCounts = '\t'.join(uniqueCodes)
-        countMatrixHeader = "PatientID\tDOB\tMale\t{0:s}\n".format(separatedCounts)
+        countMatrixHeader = "PatientID\tDOB\tMale\t{0:s}\t{1:s}\n".format(diseaseIndicators, separatedCounts)
         fidCountMatrix.write(countMatrixHeader)
         fidBinaryMatrix.write(countMatrixHeader)
-        sumOverTimeHeader = "PatientID\tDOB\tMale\tDate\t{0:s}\n".format(separatedCounts)
+        sumOverTimeHeader = "PatientID\tDOB\tMale\tDate\t{0:s}\t{1:s}\n".format(diseaseIndicators, separatedCounts)
         fidCountSumOverTime.write(sumOverTimeHeader)
         fidBinarySumOverTime.write(sumOverTimeHeader)
         fidCodesPerTimePoint.write(sumOverTimeHeader)
-        rebasedSumOverTimeHeader = "PatientID\tDOB\tMale\tDaysAfterJan_{0:s}\t{1:s}\n".format(
-            rebaseYear.strftime("%Y"), separatedCounts)
+        rebasedSumOverTimeHeader = "PatientID\tDOB\tMale\tDaysAfterJan_{0:s}\t{1:s}\t{2:s}\n".format(
+            rebaseYear.strftime("%Y"), diseaseIndicators, separatedCounts)
         fidCountSumOverTimeRebased.write(rebasedSumOverTimeHeader)
         fidBinarySumOverTimeRebased.write(rebasedSumOverTimeHeader)
         fidCodesPerTimePointRebased.write(rebasedSumOverTimeHeader)
@@ -204,37 +207,43 @@ def main(fileParams):
                     timePointCounts[j] += 1
 
                 # Write out the patient's current cumulative medical history in both count and binary formats.
-                fidCountSumOverTime.write("{0:s}\t{1:s}\t{2:s}\t{3:s}\t{4:s}\n".format(
+                fidCountSumOverTime.write("{0:s}\t{1:s}\t{2:s}\t{3:s}\t{4:s}\t{5:s}\n".format(
                     patientID, patientDemographics[patientID]["DOB"], patientDemographics[patientID]["Male"],
-                    i.strftime("%Y-%m-%d"), '\t'.join([str(sumCodeCounts[i]) for i in uniqueCodes])))
-                fidBinarySumOverTime.write("{0:s}\t{1:s}\t{2:s}\t{3:s}\t{4:s}\n".format(
+                    i.strftime("%Y-%m-%d"), patientDiseases[patientID],
+                    '\t'.join([str(sumCodeCounts[i]) for i in uniqueCodes])))
+                fidBinarySumOverTime.write("{0:s}\t{1:s}\t{2:s}\t{3:s}\t{4:s}\t{5:s}\n".format(
                     patientID, patientDemographics[patientID]["DOB"], patientDemographics[patientID]["Male"],
-                    i.strftime("%Y-%m-%d"), '\t'.join(['1' if sumCodeCounts[i] > 0 else '0' for i in uniqueCodes])))
+                    i.strftime("%Y-%m-%d"), patientDiseases[patientID],
+                    '\t'.join(['1' if sumCodeCounts[i] > 0 else '0' for i in uniqueCodes])))
 
                 # Write out the patient's current cumulative medical history in both count and binary formats
                 # after rebasing the year.
-                fidCountSumOverTimeRebased.write("{0:s}\t{1:s}\t{2:s}\t{3:d}\t{4:s}\n".format(
+                fidCountSumOverTimeRebased.write("{0:s}\t{1:s}\t{2:s}\t{3:d}\t{4:s}\t{5:s}\n".format(
                     patientID, patientDemographics[patientID]["DOB"], patientDemographics[patientID]["Male"],
-                    daysAfterYear0.days, '\t'.join([str(sumCodeCounts[i]) for i in uniqueCodes])))
-                fidBinarySumOverTimeRebased.write("{0:s}\t{1:s}\t{2:s}\t{3:d}\t{4:s}\n".format(
+                    daysAfterYear0.days, patientDiseases[patientID],
+                    '\t'.join([str(sumCodeCounts[i]) for i in uniqueCodes])))
+                fidBinarySumOverTimeRebased.write("{0:s}\t{1:s}\t{2:s}\t{3:d}\t{4:s}\t{5:s}\n".format(
                     patientID, patientDemographics[patientID]["DOB"], patientDemographics[patientID]["Male"],
-                    daysAfterYear0.days, '\t'.join(['1' if sumCodeCounts[i] > 0 else '0' for i in uniqueCodes])))
+                    daysAfterYear0.days, patientDiseases[patientID],
+                    '\t'.join(['1' if sumCodeCounts[i] > 0 else '0' for i in uniqueCodes])))
 
                 # Write out the patient's medical history for this date in both count and binary formats.
-                fidCodesPerTimePoint.write("{0:s}\t{1:s}\t{2:s}\t{3:s}\t{4:s}\n".format(
+                fidCodesPerTimePoint.write("{0:s}\t{1:s}\t{2:s}\t{3:s}\t{4:s}\t{5:s}\n".format(
                     patientID, patientDemographics[patientID]["DOB"], patientDemographics[patientID]["Male"],
-                    i.strftime("%Y-%m-%d"), '\t'.join([str(timePointCounts[i]) for i in uniqueCodes])))
+                    i.strftime("%Y-%m-%d"), patientDiseases[patientID],
+                    '\t'.join([str(timePointCounts[i]) for i in uniqueCodes])))
 
                 # Write out the patient's medical history for this date in both count and binary formats
                 # after rebasing the year.
-                fidCodesPerTimePointRebased.write("{0:s}\t{1:s}\t{2:s}\t{3:d}\t{4:s}\n".format(
+                fidCodesPerTimePointRebased.write("{0:s}\t{1:s}\t{2:s}\t{3:d}\t{4:s}\t{5:s}\n".format(
                     patientID, patientDemographics[patientID]["DOB"], patientDemographics[patientID]["Male"],
-                    daysAfterYear0.days, '\t'.join([str(timePointCounts[i]) for i in uniqueCodes])))
+                    daysAfterYear0.days, patientDiseases[patientID],
+                    '\t'.join([str(timePointCounts[i]) for i in uniqueCodes])))
 
             # Write out the vector of the counts of all codes in the patient's history in both count and binary formats.
-            fidCountMatrix.write("{0:s}\t{1:s}\t{2:s}\t{3:s}\n".format(
+            fidCountMatrix.write("{0:s}\t{1:s}\t{2:s}\t{3:s}\t{4:s}\n".format(
                 patientID, patientDemographics[patientID]["DOB"], patientDemographics[patientID]["Male"],
-                '\t'.join([str(sumCodeCounts[i]) for i in uniqueCodes])))
-            fidBinaryMatrix.write("{0:s}\t{1:s}\t{2:s}\t{3:s}\n".format(
+                patientDiseases[patientID], '\t'.join([str(sumCodeCounts[i]) for i in uniqueCodes])))
+            fidBinaryMatrix.write("{0:s}\t{1:s}\t{2:s}\t{3:s}\t{4:s}\n".format(
                 patientID, patientDemographics[patientID]["DOB"], patientDemographics[patientID]["Male"],
-                '\t'.join(['1' if sumCodeCounts[i] > 0 else '0' for i in uniqueCodes])))
+                patientDiseases[patientID], '\t'.join(['1' if sumCodeCounts[i] > 0 else '0' for i in uniqueCodes])))
