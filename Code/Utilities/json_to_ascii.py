@@ -4,8 +4,15 @@
 def json_to_ascii(jsonObject):
     """Convert a JSON object from unicode to ascii strings.
 
+    This function assumes that the Python version is 2.x (else there is no need to use it).
+
     This will recurse through all levels of the JSON dictionary, and therefore may hit Python's recursion limit.
     To avoid this use object_hook in the json.load() function instead.
+
+    :param jsonObject:  The JSON object.
+    :type jsonObject:   dict
+    :return:            The JSON object with all strings converted to ascii format.
+    :rtype:             dict
 
     """
 
