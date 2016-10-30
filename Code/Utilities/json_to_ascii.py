@@ -17,7 +17,7 @@ def json_to_ascii(jsonObject):
     """
 
     if isinstance(jsonObject, dict):
-        # If the current part of the JSON oobject is a dictionary, then make all its keys and values ascii if needed.
+        # If the current part of the JSON object is a dictionary, then make all its keys and values ascii if needed.
         return dict([(json_to_ascii(key), json_to_ascii(value)) for key, value in jsonObject.iteritems()])
     elif isinstance(jsonObject, list):
         # If the current part of the JSON object is a list, then make all its elements ascii if needed.
