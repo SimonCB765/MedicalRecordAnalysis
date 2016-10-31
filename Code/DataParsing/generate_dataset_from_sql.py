@@ -56,9 +56,10 @@ def main(dirSQLFiles, dirOutput):
                 # The line contains information about a row in the journal table.
                 entries = patient_data_parser(line)
 
-                # Add the code to the set of unique codes.
-                code = entries[1]
-                uniqueCodes.add(code)
+                if entries:
+                    # The entry on this line contained a code, so add the code to the set of unique codes.
+                    code = entries[1]
+                    uniqueCodes.add(code)
 
                 # TODO remove this
                 count += 1
@@ -77,24 +78,26 @@ def main(dirSQLFiles, dirOutput):
                 # The line contains information about a row in the journal table.
                 entries = patient_data_parser(line)
 
-                # Get the details of this patient-code association.
-                patientID = entries[0]
-                code = entries[1]
-                date = datetime.datetime.strptime(entries[2], "%Y-%m-%d")  # Convert YYYY-MM-DD date to datetime object.
-                value1 = float(entries[3])
-                value2 = float(entries[4])
+                if entries:
+                    # The entry on this line contained all the information needed to record it (for example the code was
+                    # not missing), so get the details of this patient-code association.
+                    patientID = entries[0]
+                    code = entries[1]
+                    date = datetime.datetime.strptime(entries[2], "%Y-%m-%d")  # Convert YYYY-MM-DD date to datetime.
+                    value1 = float(entries[3])
+                    value2 = float(entries[4])
 
-                if patientID != currentPatient and currentPatient:
-                    # A new patient has been found and this is not the first line of the file, so record the old patient
-                    # and reset the patient data for the new patient.
-                    dateOfBirth = datetime.datetime.strptime(patientData[currentPatient]["DOB"], "%Y")
-                    isMale = patientData[currentPatient]["Male"] == '1'
-                    save_patient(currentPatient, patientHisotry, dateOfBirth, isMale, dirOutput, uniqueCodes)
-                    patientHisotry = []
-                currentPatient = patientID  # Update the current patient's ID to be this patient's.
+                    if patientID != currentPatient and currentPatient:
+                        # A new patient has been found and this is not the first line of the file, so record the old
+                        # patient and reset the patient data for the new patient.
+                        dateOfBirth = datetime.datetime.strptime(patientData[currentPatient]["DOB"], "%Y")
+                        isMale = patientData[currentPatient]["Male"] == '1'
+                        save_patient(currentPatient, patientHisotry, dateOfBirth, isMale, dirOutput, uniqueCodes)
+                        patientHisotry = []
+                    currentPatient = patientID  # Update the current patient's ID to be this patient's.
 
-                # Add this patient-code association to the patient's history.
-                patientHisotry.append({"Code": code, "Date": date, "Val1": value1, "Val2": value2})
+                    # Add this patient-code association to the patient's history.
+                    patientHisotry.append({"Code": code, "Date": date, "Val1": value1, "Val2": value2})
 
                 # TODO remove this
                 count += 1
@@ -281,7 +284,13 @@ def patient_data_parser(line):
 
     # Update the code entry.
     code = entries[1].split(',')[0]  # If the code is recorded with its values, then just get the code.
-    entries[1] = code
+    if code:
+        # There was a code recorded for this association.
+        entries[1] = code
+    else:
+        # There was no code recorded for this association. For example, the association looks like:
+        # 3123336,'','2004-11-01',0.0000,0.0000,null
+        entries = []
 
     return entries
 
