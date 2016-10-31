@@ -25,9 +25,10 @@ The time steps can be determined using one of three methods:
 1. Entire histories - use the entire patient's history as a single time step. Patients will all have one time step.
     - Each patient in the dataset is represented by one vector.
     - Patients all have the same number of time steps (1).
-    - The age recorded for the patient is the age at which they 
+    - The age recorded for the patient is the age of their last measurement.
+    - This approach is not used with raw data measurements.
 2. Patient visits
-    - Each patient in the dataset is broken down into time steps bassed on the different dates when code were associated with them. As data is all primary care, this is essentially breaking down the history into visits to a GP.
+    - Each patient in the dataset is broken down into time steps bassed on the different dates when code were associated with them. As data is all primary care, this is essentially breaking down the history into visits to a GP (or possibly lab test results).
     - There is no expectation that patients will have the same number of time steps.
     - This approach lends itself to two subdivisions:
         1. Non-cumulative
@@ -36,7 +37,7 @@ The time steps can be determined using one of three methods:
         2. Cumulative
             - Values are accumulated over subsequent time steps.
             - For example, if using the visits from the non-cumulative example, the patient's vectors would be [1, 0, 1, 0] and [1, 0, 2, 1] for the code count method and [1, 0, 1, 0] and [1, 0, 1, 1] for the binary indicator method.
-            - For raw data representations, the accumulation is dealt with by calculating the area under the curve of the measurement time series.
+            - This approach is not used with raw data measurements.
 3. Years
     - The history of each patient in the dataset is broken down based on the years of their life, with one time step per year.
     - There is no expectation that patients will have the same number of time steps.
@@ -47,31 +48,24 @@ The time steps can be determined using one of three methods:
         2. Cumulative
             - Values are accumulated over subsequent time steps.
             - For example, if using the codes from the non-cumulative example, the patient's vectors would be [1, 0, 1, 0] and [1, 0, 2, 1] for the code count method and [1, 0, 1, 0] and [1, 0, 1, 1] for the binary indicator method.
-            - For raw data representations, the accumulation is dealt with by calculating the area under the curve of the measurement time series.
+            - This approach is not used with raw data measurements.
 
-Combined, these possibilities give 15 datasets:
+Combined, these possibilities give twelve datasets (as three raw data combinations are not used):
 
-1. Code counts + Entire histories (Code_Count_History.tsv)
-2. Code counts + Non-cumulative patient visits (Code_Count_Visits_NC.tsv)
-3. Code counts + Cumulative patient visits (Code_Count_Visits_C.tsv)
-4. Code counts + Non-cumulative years (Code_Count_Years_NC.tsv)
-5. Code counts + Cumulative years (Code_Count_Years_C.tsv)
-6. Binary indicators + Entire histories (Binary_Indicator_History.tsv)
-7. Binary indicators + Non-cumulative patient visits (Binary_Indicator_Visits_NC.tsv)
-8. Binary indicators + Cumulative patient visits (Binary_Indicator_Visits_C.tsv)
-9. Binary indicators + Non-cumulative years (Binary_Indicator_Years_NC.tsv)
-10. Binary indicators + Cumulative years (Binary_Indicator_Years_C.tsv)
-11. Raw data + Entire histories (Raw_Data_History.tsv)
-12. Raw data + Non-cumulative patient visits (Raw_Data_Visits_NC.tsv)
-13. Raw data + Cumulative patient visits (Raw_Data_Visits_C.tsv)
-14. Raw data + Non-cumulative years (Raw_Data_Years_NC.tsv)
-15. Raw data + Cumulative years (Raw_Data_Years_C.tsv)
+1. Code counts + Entire histories (CodeCount_History.tsv)
+2. Code counts + Non-cumulative patient visits (CodeCount_Visits_NC.tsv)
+3. Code counts + Cumulative patient visits (CodeCount_Visits_C.tsv)
+4. Code counts + Non-cumulative years (CodeCount_Years_NC.tsv)
+5. Code counts + Cumulative years (CodeCount_Years_C.tsv)
+6. Binary indicators + Entire histories (BinaryIndicator_History.tsv)
+7. Binary indicators + Non-cumulative patient visits (BinaryIndicator_Visits_NC.tsv)
+8. Binary indicators + Cumulative patient visits (BinaryIndicator_Visits_C.tsv)
+9. Binary indicators + Non-cumulative years (BinaryIndicator_Years_NC.tsv)
+10. Binary indicators + Cumulative years (BinaryIndicator_Years_C.tsv)
+11. Raw data + Non-cumulative patient visits (RawData_Visits_NC.tsv)
+12. Raw data + Non-cumulative years (RawData_Years_NC.tsv)
 
 
 Notes
 
 - As the date of birth is only given by the year (i.e. it is a year of birth), all ages are calculated as if the patient's birthday was January 1st of the year they were born.
-    
-Changes to Possibly Make
-
-- Ignore blank years at the start of the age time steps (but not after the first time step with recorded associations) to ignore all years before they have a record.

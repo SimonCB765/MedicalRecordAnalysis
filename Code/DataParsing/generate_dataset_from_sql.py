@@ -194,37 +194,35 @@ def calculate_age(born, comparison=None, isFraction=False):
 def file_name_generator(dirOutput):
     """Generate the names of the cleaned dataset files to be generated.
 
-    The intended contents of the files are:
-        Count_Histories - One line per patient and column per code, with the line containing the count of the number of
-            times each code was associated with the patient.
-        Count_Time_Points - Each patient has the same number of lines as they have unique dates when codes were
-            associated with them. Each row (time point) contains the count of the number of times each code was
-            associated with the patient on that particular date.
-        Count_Cumulative - Same as Count_Time_Points, except that counts accumulate over time (each line contains the
-            count of the codes associated on that date plus all previous dates). The final line for each patient is
-            therefore the same as the line for the patient in Count_Histories.
-        Raw_Time_Points - Same as Count_Time_Points, except that each row contains the Val1 value associated with the
-            patient-code association. If there is no Val1 value (i.e. Val1 is 0), then a -1 is used in its place.
-        Years_Counts - Each patient record is split into years from DOB, with each year containing the count of the
-            number of times each code was associated with the patient during that year.
-        Years_Raw - Same as Years_Counts, but mean Val1 values in the year (or -1) are recorded (as in Raw_Time_Points).
+    The intended contents of the files can be found in the README.
 
     :param dirOutput:   Location of the directory containing the dataset files.
     :type dirOutput:    str
     :return:            The locations of the cleaned dataset files.
-    :rtype:             list
+    :rtype:             dict
 
     """
 
-    files = [
-        os.path.join(dirOutput, "Count_Histories.tsv"),
-        os.path.join(dirOutput, "Count_Time_Points.tsv"),
-        os.path.join(dirOutput, "Count_Cumulative.tsv"),
-        os.path.join(dirOutput, "Raw_Time_Points.tsv"),
-        os.path.join(dirOutput, "Years_Counts.tsv"),
-        os.path.join(dirOutput, "Years_Raw.tsv")
-    ]
-    return files
+    return {
+        "CodeCount": {
+            "History": os.path.join(dirOutput, "CodeCount_History.tsv"),
+            "Visits_NC": os.path.join(dirOutput, "CodeCount_Visits_NC.tsv"),
+            "Visits_C": os.path.join(dirOutput, "CodeCount_Visits_C.tsv"),
+            "Years_NC": os.path.join(dirOutput, "CodeCount_Years_NC.tsv"),
+            "Years_C": os.path.join(dirOutput, "CodeCount_Years_C.tsv")
+        },
+        "BinaryIndicator": {
+            "History": os.path.join(dirOutput, "BinaryIndicator_History.tsv"),
+            "Visits_NC": os.path.join(dirOutput, "BinaryIndicator_Visits_NC.tsv"),
+            "Visits_C": os.path.join(dirOutput, "BinaryIndicator_Visits_C.tsv"),
+            "Years_NC": os.path.join(dirOutput, "BinaryIndicator_Years_NC.tsv"),
+            "Years_C": os.path.join(dirOutput, "BinaryIndicator_Years_C.tsv")
+        },
+        "RawData": {
+            "Visits_NC": os.path.join(dirOutput, "RawData_Visits_NC.tsv"),
+            "Years_NC": os.path.join(dirOutput, "RawData_Years_NC.tsv")
+        }
+    }
 
 
 def patient_data_parser(line):
