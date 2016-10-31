@@ -39,7 +39,7 @@ The time steps can be determined using one of three methods:
             - For example, if using the visits from the non-cumulative example, the patient's vectors would be [1, 0, 1, 0] and [1, 0, 2, 1] for the code count method and [1, 0, 1, 0] and [1, 0, 1, 1] for the binary indicator method.
             - This approach is not used with raw data measurements.
 3. Years
-    - The history of each patient in the dataset is broken down based on the years of their life, with one time step per year.
+    - The history of each patient in the dataset is broken down based on the years of their life, with one time step per year. This essentially combines all data for a patient within one year to attempt to fill out the sparseness of the records.
     - There is no expectation that patients will have the same number of time steps.
     - This approach lends itself to two subdivisions:
         1. Non-cumulative

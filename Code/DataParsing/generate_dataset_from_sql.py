@@ -303,7 +303,7 @@ def save_patient(patientID, patientData, patientDOB, isMale, dirOutput, uniqueCo
     :type patientID:        str
     :param patientData:     The patient's history. Each entry will contain a dictionary recording a patient-code as:
                                 {"Code": code, "Date": date, "Val1": value1, "Val2": value2}
-    :type patientData:      list
+    :type patientData:      list[dict[str, str]]
     :param patientDOB:      The patient's date of birth.
     :type patientDOB:       datetime.datetime
     :param isMale:          Whether the patient is male.
@@ -315,13 +315,39 @@ def save_patient(patientID, patientData, patientDOB, isMale, dirOutput, uniqueCo
 
     """
 
-    # Get the files where the datasets should be written. The files are:
-    #   Count_Histories, Count_Time_Points, Count_Cumulative, Raw_Time_Points, Years_Counts, Years_Raw
+    # Get the files where the datasets should be written.
     outputFiles = file_name_generator(dirOutput)
 
-    with open(outputFiles[0], 'a') as fidCountHist, open(outputFiles[1], 'a') as fidCountTP, \
-            open(outputFiles[2], 'a') as fidCountCum, open(outputFiles[3], 'a') as fidRaw, \
-            open(outputFiles[4], 'a') as fidYearCount, open(outputFiles[5], 'a') as fidYearRaw:
+    # Process the patient's record.
+    with open(outputFiles["CodeCount"]["History"], 'a') as fidCountHist, \
+            open(outputFiles["CodeCount"]["Visits_NC"], 'a') as fidCountVisNC, \
+            open(outputFiles["CodeCount"]["Visits_C"], 'a') as fidCountVisC, \
+            open(outputFiles["CodeCount"]["Years_NC"], 'a') as fidCountYearNC, \
+            open(outputFiles["CodeCount"]["Years_C"], 'a') as fidCountYearC, \
+            open(outputFiles["BinaryIndicator"]["History"], 'a') as fidDinHist, \
+            open(outputFiles["BinaryIndicator"]["Visits_NC"], 'a') as fidBinVisNC, \
+            open(outputFiles["BinaryIndicator"]["Visits_C"], 'a') as fidBinVisC, \
+            open(outputFiles["BinaryIndicator"]["Years_NC"], 'a') as fidBinYearNC, \
+            open(outputFiles["BinaryIndicator"]["Years_C"], 'a') as fidBinYearC, \
+            open(outputFiles["RawData"]["Visits_NC"], 'a') as fidRawVisNC, \
+            open(outputFiles["RawData"]["Years_NC"], 'a') as fidRawYearNC:
+
+        # Sort the dates when a patient was associated with a code in order from oldest to newest.
+        sortedDates = sorted({i["Date"] for i in patientData})
+
+        # Determine the associations at each time point.
+        timePoints = defaultdict(list)
+        for i in patientData:
+            timePoints[i["Date"]].append(i)
+
+
+
+
+
+
+
+
+
 
         # Write out the headers for the generated datasets.
         codeString = '\t'.join(uniqueCodes)
@@ -332,14 +358,6 @@ def save_patient(patientID, patientData, patientDOB, isMale, dirOutput, uniqueCo
         fidRaw.write(header)
         fidYearCount.write(header)
         fidYearRaw.write(header)
-
-        # Sort the dates when a patient was associated with a code in order from oldest to newest.
-        sortedDates = sorted({i["Date"] for i in patientData})
-
-        # Determine the associations at each time point.
-        timePoints = defaultdict(list)
-        for i in patientData:
-            timePoints[i["Date"]].append(i)
 
         # Generate the Count_Histories, Count_Time_Points, Count_Cumulative and Raw_Time_Points datasets.
         sumCodeCounts = dict([(i, 0) for i in uniqueCodes])  # Cumulative count of codes seen up to this time point.
@@ -364,16 +382,3 @@ def save_patient(patientID, patientData, patientDOB, isMale, dirOutput, uniqueCo
         fidCountHist.write("{0:s}\t{1:.2f}\t{2:s}\t{3:s}\n".format(
             patientID, finalAge, '1' if isMale else '0', '\t'.join([str(sumCodeCounts[i]) for i in uniqueCodes])
         ))
-
-
-
-        fidRaw.write(header)
-
-
-        # For these the time point will be like a dictionary or something with the age dictating what is recorded
-        # so ceck non fraction age blah blah
-        fidYearCount.write(header)
-        fidYearRaw.write(header)
-
-        sys.exit()
-
