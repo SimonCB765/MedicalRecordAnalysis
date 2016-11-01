@@ -92,7 +92,9 @@ def main(dirSQLFiles, dirOutput):
                         # patient and reset the patient data for the new patient.
                         dateOfBirth = datetime.datetime.strptime(patientData[currentPatient]["DOB"], "%Y")
                         isMale = patientData[currentPatient]["Male"] == '1'
-                        save_patient(currentPatient, patientHisotry, dateOfBirth, isMale, dirOutput, uniqueCodes)
+                        save_patient(
+                            currentPatient, patientHisotry, dateOfBirth, '1' if isMale else '0', dirOutput, uniqueCodes
+                        )
                         patientHisotry = []
                     currentPatient = patientID  # Update the current patient's ID to be this patient's.
 
@@ -106,7 +108,7 @@ def main(dirSQLFiles, dirOutput):
         # Record the final patient's data.
         dateOfBirth = datetime.datetime.strptime(patientData[currentPatient]["DOB"], "%Y")
         isMale = patientData[currentPatient]["Male"] == '1'
-        save_patient(currentPatient, patientHisotry, dateOfBirth, isMale, dirOutput, uniqueCodes)
+        save_patient(currentPatient, patientHisotry, dateOfBirth, '1' if isMale else '0', dirOutput, uniqueCodes)
 
     # Extract the patient disease information.
     with open(fileDiseaseTable, 'r') as fidDiseaseTable:
@@ -296,7 +298,7 @@ def patient_data_parser(line):
     return entries
 
 
-def save_patient(patientID, patientData, patientDOB, isMale, dirOutput, uniqueCodes):
+def save_patient(patientID, patientData, patientDOB, patientGender, dirOutput, uniqueCodes):
     """Save the history of a given patient in all the desired formats.
 
     :param patientID:       The ID of the patient.
@@ -306,8 +308,8 @@ def save_patient(patientID, patientData, patientDOB, isMale, dirOutput, uniqueCo
     :type patientData:      list[dict[str, str]]
     :param patientDOB:      The patient's date of birth.
     :type patientDOB:       datetime.datetime
-    :param isMale:          Whether the patient is male.
-    :type isMale:           bool
+    :param patientGender:   The gender of the patient. 1 indicates a male and 0 a female.
+    :type patientGender:    str
     :param dirOutput:       The location of the directory that will contain the output dataset files.
     :type dirOutput:        str
     :param uniqueCodes:     The codes that appear associated with a patient in the dataset.
@@ -324,13 +326,30 @@ def save_patient(patientID, patientData, patientDOB, isMale, dirOutput, uniqueCo
             open(outputFiles["CodeCount"]["Visits_C"], 'a') as fidCountVisC, \
             open(outputFiles["CodeCount"]["Years_NC"], 'a') as fidCountYearNC, \
             open(outputFiles["CodeCount"]["Years_C"], 'a') as fidCountYearC, \
-            open(outputFiles["BinaryIndicator"]["History"], 'a') as fidDinHist, \
+            open(outputFiles["BinaryIndicator"]["History"], 'a') as fidBinHist, \
             open(outputFiles["BinaryIndicator"]["Visits_NC"], 'a') as fidBinVisNC, \
             open(outputFiles["BinaryIndicator"]["Visits_C"], 'a') as fidBinVisC, \
             open(outputFiles["BinaryIndicator"]["Years_NC"], 'a') as fidBinYearNC, \
             open(outputFiles["BinaryIndicator"]["Years_C"], 'a') as fidBinYearC, \
             open(outputFiles["RawData"]["Visits_NC"], 'a') as fidRawVisNC, \
             open(outputFiles["RawData"]["Years_NC"], 'a') as fidRawYearNC:
+
+        # Create the header for the binary indicator and code count datasets.
+        codeString = '\t'.join(uniqueCodes)
+        header = "PatientID\tAge\tGender\t{0:s}\n".format(codeString)
+        fidCountHist.write(header)
+        fidCountVisNC.write(header)
+        fidCountVisC.write(header)
+        fidCountYearNC.write(header)
+        fidCountYearC.write(header)
+        fidBinHist.write(header)
+        fidBinVisNC.write(header)
+        fidBinVisC.write(header)
+        fidBinYearNC.write(header)
+        fidBinYearC.write(header)
+
+        # Create the header for the raw data datasets.
+        # TODO
 
         # Sort the dates when a patient was associated with a code in order from oldest to newest.
         sortedDates = sorted({i["Date"] for i in patientData})
@@ -340,45 +359,43 @@ def save_patient(patientID, patientData, patientDOB, isMale, dirOutput, uniqueCo
         for i in patientData:
             timePoints[i["Date"]].append(i)
 
-
-
-
-
-
-
-
-
-
-        # Write out the headers for the generated datasets.
-        codeString = '\t'.join(uniqueCodes)
-        header = "PatientID\tAge\tGender\t{0:s}\n".format(codeString)
-        fidCountHist.write(header)
-        fidCountTP.write(header)
-        fidCountCum.write(header)
-        fidRaw.write(header)
-        fidYearCount.write(header)
-        fidYearRaw.write(header)
-
-        # Generate the Count_Histories, Count_Time_Points, Count_Cumulative and Raw_Time_Points datasets.
-        sumCodeCounts = dict([(i, 0) for i in uniqueCodes])  # Cumulative count of codes seen up to this time point.
-        for i in sortedDates:
-            ageAtTimePoint = calculate_age(patientDOB, i, True)
-            timePointCounts = dict([(i, 0) for i in uniqueCodes])  # Code association counts at this time point.
-            for j in timePoints[i]:
-                code = j["Code"]
-                sumCodeCounts[code] += 1
-                timePointCounts[code] += 1
-
-            # Write out the record for this time point.
-            fidCountTP.write("{0:s}\t{1:.2f}\t{2:s}\t{3:s}\n".format(
-                patientID, ageAtTimePoint, '1' if isMale else '0', '\t'.join([str(timePointCounts[i]) for i in uniqueCodes])
-            ))
-            fidCountCum.write("{0:s}\t{1:.2f}\t{2:s}\t{3:s}\n".format(
-                patientID, ageAtTimePoint, '1' if isMale else '0', '\t'.join([str(sumCodeCounts[i]) for i in uniqueCodes])
-            ))
-
-        # Write out the record for the patient's entire history.
+        # Determine the age of the patient when the final association is recorded.
         finalAge = calculate_age(patientDOB, sortedDates[-1], True)
+
+        # Generate the code count and binary indicator data for the patient.
+        sumCodeCounts = dict([(i, 0) for i in uniqueCodes])  # Cumulative count of codes seen up to this time point.
+        yearCodeCounts = {}  # Cumulative count of codes seen during the given year.
+        for i in sortedDates:
+            # Calculate the age of the patient at this time point.
+            ageAtTimePoint = calculate_age(patientDOB, i, True)
+
+            # If the patient's age has increased since the last time point, then add a new year record.
+            if ageAtTimePoint not in yearCodeCounts:
+                yearCodeCounts[ageAtTimePoint] = dict([(i, 0) for i in uniqueCodes])
+
+            # Create the record for this time point.
+            timePointCounts = dict([(i, 0) for i in uniqueCodes])
+
+            # Identify the codes that were associated with the patient during this time point.
+            codesDuringTimePoint = {j["Code"] for j in timePoints[i]}
+
+            # Update the code count records.
+            for j in codesDuringTimePoint:
+                sumCodeCounts[j] += 1
+                yearCodeCounts[j] += 1
+                timePointCounts[j] += 1
+
+            # Write out the visits vectors (cumulative and non-cumulative) for the code counts and binary indicators.
+            # TODO - cumulative is just writing out the current sumCodeCounts (and making binary if need be)
+            # TODO - non-cumulative is just writing out the timePointCounts (and making binary if need be)
+
+        # Write out the cumulative and non-cumulative year datasets.
+        # TODO - go through the year dictionary in order of the ages recorded, summing the results for the cumulative
+
+        # Write out the entire history datasets.
         fidCountHist.write("{0:s}\t{1:.2f}\t{2:s}\t{3:s}\n".format(
-            patientID, finalAge, '1' if isMale else '0', '\t'.join([str(sumCodeCounts[i]) for i in uniqueCodes])
+            patientID, finalAge, patientGender, '\t'.join([str(sumCodeCounts[i]) for i in uniqueCodes])
+        ))
+        fidBinHist.write("{0:s}\t{1:.2f}\t{2:s}\t{3:s}\n".format(
+            patientID, finalAge, patientGender, '\t'.join([str(int(sumCodeCounts[i] > 0)) for i in uniqueCodes])
         ))
