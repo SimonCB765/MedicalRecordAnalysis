@@ -4,7 +4,6 @@
 from collections import defaultdict
 import datetime
 import os
-import sys
 
 
 def main(dirSQLFiles, dirOutput):
@@ -363,26 +362,26 @@ def save_patient(patientID, patientData, patientDOB, patientGender, dirOutput, u
         finalAge = calculate_age(patientDOB, sortedDates[-1], True)
 
         # Generate the code count and binary indicator data for the patient.
-        sumCodeCounts = dict([(i, 0) for i in uniqueCodes])  # Cumulative count of codes seen up to this time point.
-        yearCodeCounts = {}  # Cumulative count of codes seen during the given year.
+        sumCodeCounts = defaultdict(int)  # Cumulative count of codes seen in the patient's record.
+        yearCodeCounts = {}  # Record of the cumulative count of codes seen during each year.
         for i in sortedDates:
             # Calculate the age of the patient at this time point.
             ageAtTimePoint = calculate_age(patientDOB, i, True)
 
             # If the patient's age has increased since the last time point, then add a new year record.
             if ageAtTimePoint not in yearCodeCounts:
-                yearCodeCounts[ageAtTimePoint] = dict([(i, 0) for i in uniqueCodes])
+                yearCodeCounts[ageAtTimePoint] = defaultdict(int)
 
             # Create the record for this time point.
-            timePointCounts = dict([(i, 0) for i in uniqueCodes])
+            timePointCounts = defaultdict(int)
 
             # Identify the codes that were associated with the patient during this time point.
-            codesDuringTimePoint = {j["Code"] for j in timePoints[i]}
+            codesDuringTimePoint = [j["Code"] for j in timePoints[i]]
 
             # Update the code count records.
             for j in codesDuringTimePoint:
                 sumCodeCounts[j] += 1
-                yearCodeCounts[j] += 1
+                yearCodeCounts[ageAtTimePoint][j] += 1
                 timePointCounts[j] += 1
 
             # Write out the visits vectors (cumulative and non-cumulative) for the code counts and binary indicators.
