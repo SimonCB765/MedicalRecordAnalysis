@@ -411,11 +411,11 @@ def save_patient(patientID, patientData, patientDOB, patientGender, outputFiles,
             ))
             fidBinVisNC.write("{0:s}\t{1:.2f}\t{2:s}\t{3:s}\n".format(
                 patientID, ageAtTimePoint, patientGender,
-                '\t'.join([str(int(timePointCounts[j] > 0)) for j in uniqueCodes])
+                '\t'.join([str(1 if timePointCounts[j] > 0 else -1) for j in uniqueCodes])
             ))
             fidBinVisC.write("{0:s}\t{1:.2f}\t{2:s}\t{3:s}\n".format(
                 patientID, ageAtTimePoint, patientGender,
-                '\t'.join([str(int(sumCodeCounts[j] > 0)) for j in uniqueCodes])
+                '\t'.join([str(1 if sumCodeCounts[j] > 0 else -1) for j in uniqueCodes])
             ))
 
         # Write out the cumulative and non-cumulative year datasets.
@@ -433,10 +433,11 @@ def save_patient(patientID, patientData, patientDOB, patientGender, outputFiles,
                 patientID, i, patientGender, '\t'.join([str(sumYearCounts[j]) for j in uniqueCodes])
             ))
             fidBinYearNC.write("{0:s}\t{1:.2f}\t{2:s}\t{3:s}\n".format(
-                patientID, i, patientGender, '\t'.join([str(int(yearCodeCounts[i][j] > 0)) for j in uniqueCodes])
+                patientID, i, patientGender,
+                '\t'.join([str(1 if yearCodeCounts[i][j] > 0 else -1) for j in uniqueCodes])
             ))
             fidBinYearC.write("{0:s}\t{1:.2f}\t{2:s}\t{3:s}\n".format(
-                patientID, i, patientGender, '\t'.join([str(int(sumYearCounts[j] > 0)) for j in uniqueCodes])
+                patientID, i, patientGender, '\t'.join([str(1 if sumYearCounts[j] > 0 else -1) for j in uniqueCodes])
             ))
 
         # Write out the entire history datasets.
@@ -444,5 +445,5 @@ def save_patient(patientID, patientData, patientDOB, patientGender, outputFiles,
             patientID, finalAge, patientGender, '\t'.join([str(sumCodeCounts[i]) for i in uniqueCodes])
         ))
         fidBinHist.write("{0:s}\t{1:.2f}\t{2:s}\t{3:s}\n".format(
-            patientID, finalAge, patientGender, '\t'.join([str(int(sumCodeCounts[i] > 0)) for i in uniqueCodes])
+            patientID, finalAge, patientGender, '\t'.join([str(1 if sumCodeCounts[i] > 0 else -1) for i in uniqueCodes])
         ))
