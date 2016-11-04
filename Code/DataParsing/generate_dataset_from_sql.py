@@ -4,9 +4,10 @@
 from collections import defaultdict
 import datetime
 import os
+import re
 
 
-def main(dirSQLFiles, dirOutput):
+def main(dirSQLFiles, dirOutput, fileCodesToIgnore):
     """Generate flat file datasets by processing a set of SQL files containing patient medical data.
 
     Patient history data is assumed to be stored in a file called journal.sql within the SQL file directory. Within this
@@ -18,12 +19,21 @@ def main(dirSQLFiles, dirOutput):
     processing are performed to generate the patient's record in the different desired formats. The patient's processed
     record is then appended to each of the files storing the processed data.
 
-    :param dirSQLFiles:     The location of the directory containing the SQL files of the patient data.
-    :type dirSQLFiles:      str
-    :param dirOutput:       The location of the directory where the processed flat files should be saved.
-    :type dirOutput:        str
+    :param dirSQLFiles:         The location of the directory containing the SQL files of the patient data.
+    :type dirSQLFiles:          str
+    :param dirOutput:           The location of the directory where the processed flat files should be saved.
+    :type dirOutput:            str
+    :param fileCodesToIgnore:   The location of the file containing the codes to ignore.
+    :type fileCodesToIgnore:    str
 
     """
+
+    # Extract the list of regular expressions defining the codes to ignore.
+    codesToIgnore = []
+    with open(fileCodesToIgnore, 'r') as fidCodes:
+        for line in fidCodes:
+            codesToIgnore.append((line.strip()).replace('%', ".*"))
+    codesToIgnore = re.compile('(' + '|'.join([i.replace('%', ".*") for i in codesToIgnore]) + ')')
 
     # Get the files for the SQL tables we're interested in. These would be the journal table and the patient table.
     fileJournalTable = os.path.join(dirSQLFiles, "journal.sql")
@@ -56,9 +66,11 @@ def main(dirSQLFiles, dirOutput):
                 entries = patient_data_parser(line)
 
                 if entries:
-                    # The entry on this line contained a code, so add the code to the set of unique codes.
+                    # The entry on this line contained a code, so add the code to the set of unique codes if it is not
+                    # being ignored.
                     code = entries[1]
-                    uniqueCodes.add(code)
+                    if not codesToIgnore.match(code):
+                        uniqueCodes.add(code)
 
                 # TODO remove this
                 count += 1

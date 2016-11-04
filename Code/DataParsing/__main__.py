@@ -23,6 +23,10 @@ parser = argparse.ArgumentParser(description="Generate processed datafiles from 
                                  epilog="")
 
 # Optional arguments.
+parser.add_argument("-i", "--ignore",
+                    help="The location of the file containing the codes that should be ignored and not used to create "
+                         "the final datasets. Default: a file called IgnoredCodes.txt in the Data drectory.",
+                    type=str)
 parser.add_argument("-o", "--output",
                     help="The location of the directory to write the output files to. Default: a directory called "
                          "ProcessedData within the same directory that the SQL file directory is found.",
@@ -66,6 +70,14 @@ if overwrite:
 elif os.path.exists(dirOutput):
     errorsFound.append("The output directory location already exists and overwriting is not enabled.")
 
+# Validate the code ignore file.
+fileIgnoreCodes = os.path.join(dirData, "IgnoredCodes.txt")
+fileIgnoreCodes = args.ignore if args.ignore else fileIgnoreCodes
+if not os.path.exists(fileIgnoreCodes):
+    errorsFound.append("The location of the file containing the codes to ignore does not exist.")
+elif not os.path.isfile(fileIgnoreCodes):
+    errorsFound.append("The location of the file containing the codes to ignore is not a file.")
+
 # Display errors if any were found.
 if errorsFound:
     print("\n\nThe following errors were encountered while parsing the input arguments:\n")
@@ -83,4 +95,4 @@ except Exception as e:
 # ============================ #
 # Generate the Processed Files #
 # ============================ #
-generate_dataset_from_sql.main(dirSQLFiles, dirOutput)
+generate_dataset_from_sql.main(dirSQLFiles, dirOutput, fileIgnoreCodes)
