@@ -54,11 +54,12 @@ def main(dirSQLFiles, dirOutput, fileCodesToIgnore):
                 patientGender = chunks[3]  # A '1' indicates a male and a '0' a female.
                 patientData[patientID] = {"DOB": DOB, "Gender": patientGender}  # Records patient's demographics.
 
-    # Identify the codes used in the dataset. This will cause two passes through the patient data. However, without this
-    # the entire dataset (just about) will need to be stored in memory, as no patient history can be written out without
-    # knowing all the codes in the dataset.
+    # Identify the codes used in the dataset and whether they  have any data associated with them.
+    # This will cause two passes through the patient data. However, without this the entire dataset will need to be
+    # stored in memory, as no patient history can be written out without knowing all the codes in the dataset.
     count = 0  # TODO remove this
     uniqueCodes = set()  # The codes used in the dataset.
+    codeAssociatedValues = defaultdict(lambda: {"Val1": False, "Val2": False})  # Value types associated with codes.
     with open(fileJournalTable, 'r') as fidJournalTable:
         for line in fidJournalTable:
             if line[:6] == "insert":
@@ -71,6 +72,8 @@ def main(dirSQLFiles, dirOutput, fileCodesToIgnore):
                     code = entries[1]
                     if not codesToIgnore.match(code):
                         uniqueCodes.add(code)
+                        codeAssociatedValues[code]["Val1"] |= float(entries[3]) != 0
+                        codeAssociatedValues[code]["Val2"] |= float(entries[4]) != 0
 
                 # TODO remove this
                 count += 1
@@ -80,7 +83,7 @@ def main(dirSQLFiles, dirOutput, fileCodesToIgnore):
     uniqueCodes = sorted(uniqueCodes)
 
     # Create the files to record the generated datasets in.
-    outputFiles = file_name_generator(dirOutput, uniqueCodes)
+    outputFiles = file_name_generator(dirOutput, uniqueCodes, codeAssociatedValues)
 
     count = 0  # TODO remove this
     # Extract the information about each patient's history.
@@ -204,17 +207,19 @@ def calculate_age(born, comparison=None, isFraction=False):
         return yearsOld
 
 
-def file_name_generator(dirOutput, uniqueCodes):
+def file_name_generator(dirOutput, uniqueCodes, codeAssociatedValues):
     """Generate the names of the cleaned dataset files to be generated.
 
     The intended contents of the files can be found in the README.
 
-    :param dirOutput:       Location of the directory containing the dataset files.
-    :type dirOutput:        str
-    :param uniqueCodes:     The codes that appear associated with a patient in the dataset.
-    :type uniqueCodes:      list
-    :return:                The locations of the cleaned dataset files.
-    :rtype:                 dict
+    :param dirOutput:               Location of the directory containing the dataset files.
+    :type dirOutput:                str
+    :param uniqueCodes:             The codes that appear associated with a patient in the dataset.
+    :type uniqueCodes:              list
+    :param codeAssociatedValues:    A record of whether each code has value 1 or value 2 values associated with it.
+    :type codeAssociatedValues:     dict[str,dict[str,bool]]
+    :return:                        The locations of the cleaned dataset files.
+    :rtype:                     dict
 
     """
 
@@ -234,8 +239,11 @@ def file_name_generator(dirOutput, uniqueCodes):
             "Years_C": os.path.join(dirOutput, "BinaryIndicator_Years_C.tsv")
         },
         "RawData": {
+            "History": os.path.join(dirOutput, "RawData_History.tsv"),
             "Visits_NC": os.path.join(dirOutput, "RawData_Visits_NC.tsv"),
-            "Years_NC": os.path.join(dirOutput, "RawData_Years_NC.tsv")
+            "Visits_C": os.path.join(dirOutput, "RawData_Visits_C.tsv"),
+            "Years_NC": os.path.join(dirOutput, "RawData_Years_NC.tsv"),
+            "Years_C": os.path.join(dirOutput, "RawData_Years_C.tsv")
         }
     }
 
@@ -250,8 +258,11 @@ def file_name_generator(dirOutput, uniqueCodes):
             open(outputFiles["BinaryIndicator"]["Visits_C"], 'a') as fidBinVisC, \
             open(outputFiles["BinaryIndicator"]["Years_NC"], 'a') as fidBinYearNC, \
             open(outputFiles["BinaryIndicator"]["Years_C"], 'a') as fidBinYearC, \
+            open(outputFiles["RawData"]["History"], 'a') as fidRawHist, \
             open(outputFiles["RawData"]["Visits_NC"], 'a') as fidRawVisNC, \
-            open(outputFiles["RawData"]["Years_NC"], 'a') as fidRawYearNC:
+            open(outputFiles["RawData"]["Visits_C"], 'a') as fidRawVisC, \
+            open(outputFiles["RawData"]["Years_NC"], 'a') as fidRawYearNC, \
+            open(outputFiles["RawData"]["Years_C"], 'a') as fidRawYearC:
 
         # Create the header for the binary indicator and code count datasets.
         codeString = '\t'.join(uniqueCodes)
@@ -268,7 +279,19 @@ def file_name_generator(dirOutput, uniqueCodes):
         fidBinYearC.write(header)
 
         # Create the header for the raw data datasets.
-        # TODO
+        for i in uniqueCodes:
+            if codeAssociatedValues[i]["Val1"] and codeAssociatedValues[i]["Val2"]:
+                codeString = codeString.replace("\t{:s}\t".format(i), "\t{0:s}_Val1\t{0:s}_Val2\t".format(i))
+            elif codeAssociatedValues[i]["Val1"]:
+                codeString = codeString.replace("\t{:s}\t".format(i), "\t{:s}_Val1\t".format(i))
+            elif codeAssociatedValues[i]["Val2"]:
+                codeString = codeString.replace("\t{:s}\t".format(i), "\t{:s}_Val2\t".format(i))
+        header = "PatientID\tAge\tGender\t{0:s}\n".format(codeString)
+        fidRawHist.write(header)
+        fidRawVisNC.write(header)
+        fidRawVisC.write(header)
+        fidRawYearNC.write(header)
+        fidRawYearC.write(header)
 
     return outputFiles
 
@@ -374,8 +397,11 @@ def save_patient(patientID, patientData, patientDOB, patientGender, outputFiles,
             open(outputFiles["BinaryIndicator"]["Visits_C"], 'a') as fidBinVisC, \
             open(outputFiles["BinaryIndicator"]["Years_NC"], 'a') as fidBinYearNC, \
             open(outputFiles["BinaryIndicator"]["Years_C"], 'a') as fidBinYearC, \
+            open(outputFiles["RawData"]["History"], 'a') as fidRawHist, \
             open(outputFiles["RawData"]["Visits_NC"], 'a') as fidRawVisNC, \
-            open(outputFiles["RawData"]["Years_NC"], 'a') as fidRawYearNC:
+            open(outputFiles["RawData"]["Visits_C"], 'a') as fidRawVisC, \
+            open(outputFiles["RawData"]["Years_NC"], 'a') as fidRawYearNC, \
+            open(outputFiles["RawData"]["Years_C"], 'a') as fidRawYearC:
 
         # Sort the dates when a patient was associated with a code in order from oldest to newest.
         sortedDates = sorted({i["Date"] for i in patientData})
