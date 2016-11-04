@@ -368,12 +368,12 @@ def save_patient(patientID, patientData, patientDOB, patientGender, outputFiles,
         # Sort the dates when a patient was associated with a code in order from oldest to newest.
         sortedDates = sorted({i["Date"] for i in patientData})
 
-        # Determine the associations at each time point.
+        # Determine the (potentially multiple) associations present at each time point.
         timePoints = defaultdict(list)
         for i in patientData:
             timePoints[i["Date"]].append(i)
 
-        # Determine the age of the patient when the final association is recorded.
+        # Determine the age of the patient when the final association was recorded.
         finalAge = calculate_age(patientDOB, sortedDates[-1], True)
 
         # Generate the code count and binary indicator data for the patient.
