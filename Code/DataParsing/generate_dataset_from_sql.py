@@ -41,8 +41,8 @@ def main(dirSQLFiles, dirOutput):
                 chunks = line.split(',')
                 patientID = chunks[0]
                 DOB = chunks[1]
-                isMale = chunks[3]
-                patientData[patientID] = {"DOB": DOB, "Male": isMale}  # Records patient's demographics.
+                patientGender = chunks[3]  # A '1' indicates a male and a '0' a female.
+                patientData[patientID] = {"DOB": DOB, "Gender": patientGender}  # Records patient's demographics.
 
     # Identify the codes used in the dataset. This will cause two passes through the patient data. However, without this
     # the entire dataset (just about) will need to be stored in memory, as no patient history can be written out without
@@ -67,6 +67,9 @@ def main(dirSQLFiles, dirOutput):
                 # TODO
     uniqueCodes = sorted(uniqueCodes)
 
+    # Create the files to record the generated datasets in.
+    outputFiles = file_name_generator(dirOutput, uniqueCodes)
+
     count = 0  # TODO remove this
     # Extract the information about each patient's history.
     currentPatient = None  # The ID of the patient who's record is currently being built.
@@ -90,9 +93,9 @@ def main(dirSQLFiles, dirOutput):
                         # A new patient has been found and this is not the first line of the file, so record the old
                         # patient and reset the patient data for the new patient.
                         dateOfBirth = datetime.datetime.strptime(patientData[currentPatient]["DOB"], "%Y")
-                        isMale = patientData[currentPatient]["Male"] == '1'
+                        patientGender = patientData[currentPatient]["Gender"]
                         save_patient(
-                            currentPatient, patientHisotry, dateOfBirth, '1' if isMale else '0', dirOutput, uniqueCodes
+                            currentPatient, patientHisotry, dateOfBirth, patientGender, outputFiles, uniqueCodes
                         )
                         patientHisotry = []
                     currentPatient = patientID  # Update the current patient's ID to be this patient's.
@@ -106,8 +109,8 @@ def main(dirSQLFiles, dirOutput):
                     break
         # Record the final patient's data.
         dateOfBirth = datetime.datetime.strptime(patientData[currentPatient]["DOB"], "%Y")
-        isMale = patientData[currentPatient]["Male"] == '1'
-        save_patient(currentPatient, patientHisotry, dateOfBirth, '1' if isMale else '0', dirOutput, uniqueCodes)
+        patientGender = patientData[currentPatient]["Gender"]
+        save_patient(currentPatient, patientHisotry, dateOfBirth, patientGender, outputFiles, uniqueCodes)
 
     # Extract the patient disease information.
     with open(fileDiseaseTable, 'r') as fidDiseaseTable:
@@ -132,7 +135,7 @@ def main(dirSQLFiles, dirOutput):
         fidPatientDetails.write(patientHeader)
         for i in patientData:
             fidPatientDetails.write("{0:s}\t{1:s}\t{2:s}\t{3:s}\n".format(
-                i, patientData[i]["DOB"], patientData[i]["Male"], patientData[i]["Disease"]))
+                i, patientData[i]["DOB"], patientData[i]["Gender"], patientData[i]["Disease"]))
 
 
 def calculate_age(born, comparison=None, isFraction=False):
@@ -192,19 +195,21 @@ def calculate_age(born, comparison=None, isFraction=False):
         return yearsOld
 
 
-def file_name_generator(dirOutput):
+def file_name_generator(dirOutput, uniqueCodes):
     """Generate the names of the cleaned dataset files to be generated.
 
     The intended contents of the files can be found in the README.
 
-    :param dirOutput:   Location of the directory containing the dataset files.
-    :type dirOutput:    str
-    :return:            The locations of the cleaned dataset files.
-    :rtype:             dict
+    :param dirOutput:       Location of the directory containing the dataset files.
+    :type dirOutput:        str
+    :param uniqueCodes:     The codes that appear associated with a patient in the dataset.
+    :type uniqueCodes:      list
+    :return:                The locations of the cleaned dataset files.
+    :rtype:                 dict
 
     """
 
-    return {
+    outputFiles = {
         "CodeCount": {
             "History": os.path.join(dirOutput, "CodeCount_History.tsv"),
             "Visits_NC": os.path.join(dirOutput, "CodeCount_Visits_NC.tsv"),
@@ -224,6 +229,39 @@ def file_name_generator(dirOutput):
             "Years_NC": os.path.join(dirOutput, "RawData_Years_NC.tsv")
         }
     }
+
+    # Generate the headers for the files.
+    with open(outputFiles["CodeCount"]["History"], 'a') as fidCountHist, \
+            open(outputFiles["CodeCount"]["Visits_NC"], 'a') as fidCountVisNC, \
+            open(outputFiles["CodeCount"]["Visits_C"], 'a') as fidCountVisC, \
+            open(outputFiles["CodeCount"]["Years_NC"], 'a') as fidCountYearNC, \
+            open(outputFiles["CodeCount"]["Years_C"], 'a') as fidCountYearC, \
+            open(outputFiles["BinaryIndicator"]["History"], 'a') as fidBinHist, \
+            open(outputFiles["BinaryIndicator"]["Visits_NC"], 'a') as fidBinVisNC, \
+            open(outputFiles["BinaryIndicator"]["Visits_C"], 'a') as fidBinVisC, \
+            open(outputFiles["BinaryIndicator"]["Years_NC"], 'a') as fidBinYearNC, \
+            open(outputFiles["BinaryIndicator"]["Years_C"], 'a') as fidBinYearC, \
+            open(outputFiles["RawData"]["Visits_NC"], 'a') as fidRawVisNC, \
+            open(outputFiles["RawData"]["Years_NC"], 'a') as fidRawYearNC:
+
+        # Create the header for the binary indicator and code count datasets.
+        codeString = '\t'.join(uniqueCodes)
+        header = "PatientID\tAge\tGender\t{0:s}\n".format(codeString)
+        fidCountHist.write(header)
+        fidCountVisNC.write(header)
+        fidCountVisC.write(header)
+        fidCountYearNC.write(header)
+        fidCountYearC.write(header)
+        fidBinHist.write(header)
+        fidBinVisNC.write(header)
+        fidBinVisC.write(header)
+        fidBinYearNC.write(header)
+        fidBinYearC.write(header)
+
+        # Create the header for the raw data datasets.
+        # TODO
+
+    return outputFiles
 
 
 def patient_data_parser(line):
@@ -297,7 +335,7 @@ def patient_data_parser(line):
     return entries
 
 
-def save_patient(patientID, patientData, patientDOB, patientGender, dirOutput, uniqueCodes):
+def save_patient(patientID, patientData, patientDOB, patientGender, outputFiles, uniqueCodes):
     """Save the history of a given patient in all the desired formats.
 
     :param patientID:       The ID of the patient.
@@ -309,15 +347,12 @@ def save_patient(patientID, patientData, patientDOB, patientGender, dirOutput, u
     :type patientDOB:       datetime.datetime
     :param patientGender:   The gender of the patient. 1 indicates a male and 0 a female.
     :type patientGender:    str
-    :param dirOutput:       The location of the directory that will contain the output dataset files.
-    :type dirOutput:        str
+    :param outputFiles:     The locations of the cleaned dataset files.
+    :type outputFiles:      dict
     :param uniqueCodes:     The codes that appear associated with a patient in the dataset.
     :type uniqueCodes:      list
 
     """
-
-    # Get the files where the datasets should be written.
-    outputFiles = file_name_generator(dirOutput)
 
     # Process the patient's record.
     with open(outputFiles["CodeCount"]["History"], 'a') as fidCountHist, \
@@ -332,23 +367,6 @@ def save_patient(patientID, patientData, patientDOB, patientGender, dirOutput, u
             open(outputFiles["BinaryIndicator"]["Years_C"], 'a') as fidBinYearC, \
             open(outputFiles["RawData"]["Visits_NC"], 'a') as fidRawVisNC, \
             open(outputFiles["RawData"]["Years_NC"], 'a') as fidRawYearNC:
-
-        # Create the header for the binary indicator and code count datasets.
-        codeString = '\t'.join(uniqueCodes)
-        header = "PatientID\tAge\tGender\t{0:s}\n".format(codeString)
-        fidCountHist.write(header)
-        fidCountVisNC.write(header)
-        fidCountVisC.write(header)
-        fidCountYearNC.write(header)
-        fidCountYearC.write(header)
-        fidBinHist.write(header)
-        fidBinVisNC.write(header)
-        fidBinVisC.write(header)
-        fidBinYearNC.write(header)
-        fidBinYearC.write(header)
-
-        # Create the header for the raw data datasets.
-        # TODO
 
         # Sort the dates when a patient was associated with a code in order from oldest to newest.
         sortedDates = sorted({i["Date"] for i in patientData})
