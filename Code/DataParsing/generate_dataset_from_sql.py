@@ -382,10 +382,11 @@ def save_patient(patientID, patientData, patientDOB, patientGender, outputFiles,
         for i in sortedDates:
             # Calculate the age of the patient at this time point.
             ageAtTimePoint = calculate_age(patientDOB, i, True)
+            ageInYears = calculate_age(patientDOB, i, False)  # Get the age of the patient in years.
 
             # If the patient's age has increased since the last time point, then add a new year record.
-            if ageAtTimePoint not in yearCodeCounts:
-                yearCodeCounts[ageAtTimePoint] = defaultdict(int)
+            if ageInYears not in yearCodeCounts:
+                yearCodeCounts[ageInYears] = defaultdict(int)
 
             # Create the record for this time point.
             timePointCounts = defaultdict(int)
@@ -396,7 +397,7 @@ def save_patient(patientID, patientData, patientDOB, patientGender, outputFiles,
             # Update the code count records.
             for j in codesDuringTimePoint:
                 sumCodeCounts[j] += 1
-                yearCodeCounts[ageAtTimePoint][j] += 1
+                yearCodeCounts[ageInYears][j] += 1
                 timePointCounts[j] += 1
 
             # Write out the visits vectors (cumulative and non-cumulative) for the current time step.
@@ -409,14 +410,34 @@ def save_patient(patientID, patientData, patientDOB, patientGender, outputFiles,
                 patientID, ageAtTimePoint, patientGender, '\t'.join([str(sumCodeCounts[j]) for j in uniqueCodes])
             ))
             fidBinVisNC.write("{0:s}\t{1:.2f}\t{2:s}\t{3:s}\n".format(
-                patientID, ageAtTimePoint, patientGender, '\t'.join([str(int(timePointCounts[j] > 0)) for j in uniqueCodes])
+                patientID, ageAtTimePoint, patientGender,
+                '\t'.join([str(int(timePointCounts[j] > 0)) for j in uniqueCodes])
             ))
             fidBinVisC.write("{0:s}\t{1:.2f}\t{2:s}\t{3:s}\n".format(
-                patientID, ageAtTimePoint, patientGender, '\t'.join([str(int(sumCodeCounts[j] > 0)) for j in uniqueCodes])
+                patientID, ageAtTimePoint, patientGender,
+                '\t'.join([str(int(sumCodeCounts[j] > 0)) for j in uniqueCodes])
             ))
 
         # Write out the cumulative and non-cumulative year datasets.
-        # TODO - go through the year dictionary in order of the ages recorded, summing the results for the cumulative
+        sumYearCounts = defaultdict(int)  # Cumulative counts of codes across years.
+        for i in sorted(yearCodeCounts):
+            for j in yearCodeCounts[i]:
+                # Add the total number of associations between the patient and code j in year i to the cumulative total.
+                sumYearCounts[j] += yearCodeCounts[i][j]
+
+            # Record the data.
+            fidCountYearNC.write("{0:s}\t{1:.2f}\t{2:s}\t{3:s}\n".format(
+                patientID, i, patientGender, '\t'.join([str(yearCodeCounts[i][j]) for j in uniqueCodes])
+            ))
+            fidCountYearC.write("{0:s}\t{1:.2f}\t{2:s}\t{3:s}\n".format(
+                patientID, i, patientGender, '\t'.join([str(sumYearCounts[j]) for j in uniqueCodes])
+            ))
+            fidBinYearNC.write("{0:s}\t{1:.2f}\t{2:s}\t{3:s}\n".format(
+                patientID, i, patientGender, '\t'.join([str(int(yearCodeCounts[i][j] > 0)) for j in uniqueCodes])
+            ))
+            fidBinYearC.write("{0:s}\t{1:.2f}\t{2:s}\t{3:s}\n".format(
+                patientID, i, patientGender, '\t'.join([str(int(sumYearCounts[j] > 0)) for j in uniqueCodes])
+            ))
 
         # Write out the entire history datasets.
         fidCountHist.write("{0:s}\t{1:.2f}\t{2:s}\t{3:s}\n".format(
