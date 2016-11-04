@@ -402,9 +402,21 @@ def save_patient(patientID, patientData, patientDOB, patientGender, outputFiles,
                 yearCodeCounts[ageAtTimePoint][j] += 1
                 timePointCounts[j] += 1
 
-            # Write out the visits vectors (cumulative and non-cumulative) for the code counts and binary indicators.
-            # TODO - cumulative is just writing out the current sumCodeCounts (and making binary if need be)
-            # TODO - non-cumulative is just writing out the timePointCounts (and making binary if need be)
+            # Write out the visits vectors (cumulative and non-cumulative) for the current time step.
+            # The cumulative counts for all time points up to and including this one are stored in sumCodeCounts.
+            # The non-cumulative counts (i.e. those for just this time step) are stored in timePointCounts.
+            fidCountVisNC.write("{0:s}\t{1:.2f}\t{2:s}\t{3:s}\n".format(
+                patientID, ageAtTimePoint, patientGender, '\t'.join([str(timePointCounts[j]) for j in uniqueCodes])
+            ))
+            fidCountVisC.write("{0:s}\t{1:.2f}\t{2:s}\t{3:s}\n".format(
+                patientID, ageAtTimePoint, patientGender, '\t'.join([str(sumCodeCounts[j]) for j in uniqueCodes])
+            ))
+            fidBinVisNC.write("{0:s}\t{1:.2f}\t{2:s}\t{3:s}\n".format(
+                patientID, ageAtTimePoint, patientGender, '\t'.join([str(int(timePointCounts[j] > 0)) for j in uniqueCodes])
+            ))
+            fidBinVisC.write("{0:s}\t{1:.2f}\t{2:s}\t{3:s}\n".format(
+                patientID, ageAtTimePoint, patientGender, '\t'.join([str(int(sumCodeCounts[j] > 0)) for j in uniqueCodes])
+            ))
 
         # Write out the cumulative and non-cumulative year datasets.
         # TODO - go through the year dictionary in order of the ages recorded, summing the results for the cumulative
