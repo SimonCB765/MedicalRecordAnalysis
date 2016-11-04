@@ -73,7 +73,7 @@ def main(dirSQLFiles, dirOutput):
     count = 0  # TODO remove this
     # Extract the information about each patient's history.
     currentPatient = None  # The ID of the patient who's record is currently being built.
-    patientHisotry = []  # The data for the current patient.
+    patientHistory = []  # The data for the current patient.
     with open(fileJournalTable, 'r') as fidJournalTable:
         for line in fidJournalTable:
             if line[:6] == "insert":
@@ -95,13 +95,13 @@ def main(dirSQLFiles, dirOutput):
                         dateOfBirth = datetime.datetime.strptime(patientData[currentPatient]["DOB"], "%Y")
                         patientGender = patientData[currentPatient]["Gender"]
                         save_patient(
-                            currentPatient, patientHisotry, dateOfBirth, patientGender, outputFiles, uniqueCodes
+                            currentPatient, patientHistory, dateOfBirth, patientGender, outputFiles, uniqueCodes
                         )
-                        patientHisotry = []
+                        patientHistory = []
                     currentPatient = patientID  # Update the current patient's ID to be this patient's.
 
                     # Add this patient-code association to the patient's history.
-                    patientHisotry.append({"Code": code, "Date": date, "Val1": value1, "Val2": value2})
+                    patientHistory.append({"Code": code, "Date": date, "Val1": value1, "Val2": value2})
 
                 # TODO remove this
                 count += 1
@@ -110,7 +110,7 @@ def main(dirSQLFiles, dirOutput):
         # Record the final patient's data.
         dateOfBirth = datetime.datetime.strptime(patientData[currentPatient]["DOB"], "%Y")
         patientGender = patientData[currentPatient]["Gender"]
-        save_patient(currentPatient, patientHisotry, dateOfBirth, patientGender, outputFiles, uniqueCodes)
+        save_patient(currentPatient, patientHistory, dateOfBirth, patientGender, outputFiles, uniqueCodes)
 
     # Extract the patient disease information.
     with open(fileDiseaseTable, 'r') as fidDiseaseTable:
