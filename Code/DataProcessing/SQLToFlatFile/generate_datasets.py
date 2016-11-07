@@ -38,7 +38,13 @@ def main(dirSQLFiles, dirOutput, fileCodesToIgnore):
     with open(fileCodesToIgnore, 'r') as fidCodes:
         for line in fidCodes:
             codesToIgnore.append((line.strip()).replace('%', ".*"))
-    codesToIgnore = re.compile('(' + '|'.join([i.replace('%', ".*") for i in codesToIgnore]) + ')')
+    if codesToIgnore:
+        # If there are codes to ignore, then set up the regular expression to ignore them.
+        codesToIgnore = re.compile('(' + '|'.join([i.replace('%', ".*") for i in codesToIgnore]) + ')')
+    else:
+        # If there are no codes to ignore, then set up a regular expression that can never be matched and will therefore
+        # cause no codes to be ignored.
+        codesToIgnore = re.compile("a^")
 
     # Get the files for the SQL tables we're interested in. These would be the journal table and the patient table.
     fileJournalTable = os.path.join(dirSQLFiles, "journal.sql")
