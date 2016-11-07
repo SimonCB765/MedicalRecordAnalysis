@@ -7,14 +7,13 @@ import shutil
 import sys
 
 # User imports.
-if __package__ != "DataParsing":
-    # The code was not called from within the Code directory using 'python -m DataParsing'.
+if __package__ != "SQLToFlatFile":
+    # The code was not called from within the DataProcessing directory using 'python -m SQLToFlatFile'.
     # Therefore, we need to add the top level Code directory in order to use absolute imports.
     currentDir = os.path.dirname(os.path.join(os.getcwd(), __file__))  # Directory containing this file.
-    codeDir = os.path.abspath(os.path.join(currentDir, os.pardir))
+    codeDir = os.path.abspath(os.path.join(currentDir, os.pardir, os.pardir))
     sys.path.append(codeDir)
-from DataParsing import generate_dataset_from_sql
-
+from DataProcessing.SQLToFlatFile import generate_datasets
 
 # ====================== #
 # Create Argument Parser #
@@ -44,7 +43,7 @@ parser.add_argument("-w", "--overwrite",
 # ============================ #
 args = parser.parse_args()
 dirCurrent = os.path.dirname(os.path.join(os.getcwd(), __file__))  # Directory containing this file.
-dirTop = os.path.abspath(os.path.join(dirCurrent, os.pardir, os.pardir))
+dirTop = os.path.abspath(os.path.join(dirCurrent, os.pardir, os.pardir, os.pardir))
 dirData = os.path.abspath(os.path.join(dirTop, "Data"))
 errorsFound = []  # Container for any error messages generated during the validation.
 
@@ -95,4 +94,4 @@ except Exception as e:
 # ============================ #
 # Generate the Processed Files #
 # ============================ #
-generate_dataset_from_sql.main(dirSQLFiles, dirOutput, fileIgnoreCodes)
+generate_datasets.main(dirSQLFiles, dirOutput, fileIgnoreCodes)
