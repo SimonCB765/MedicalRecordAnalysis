@@ -25,14 +25,19 @@ parser = argparse.ArgumentParser(description="Shard a large dataset file into mu
 parser.add_argument("input", help="The location of the input file containing the dataset.")
 
 # Optional arguments.
+parser.add_argument("-d", "--divider",
+                    default='\t',
+                    help="The separator used to separate the columns in the dataset. This will also be used to "
+                         "separate the columns in the sharded data file. Default: a tab (\\t).",
+                    type=str)
 parser.add_argument("-i", "--ignore",
                     help="The location of the file containing the names of the columns in the dataset that should be "
                          "ignored. Default: a file called IgnoredColumns.txt in the Data directory.",
                     type=str)
 parser.add_argument("-n", "--number",
-                    default=100,
+                    default=1000,
                     help="The number of datapoints to place in each file. In the case of sequence data this will be "
-                         "the number of sequences to put in the file. Default: 100 datapoints per file.",
+                         "the number of sequences to put in the file. Default: 1000 datapoints per file.",
                     type=int)
 parser.add_argument("-o", "--output",
                     help="The location of the directory to write the output files to. Default: a directory called "
@@ -104,4 +109,4 @@ except Exception as e:
 # ====================== #
 # Shard the Dataset File #
 # ====================== #
-generate_files.main(fileDataset, dirOutput, fileIgnoreColumns, args.number, args.seq)
+generate_files.main(fileDataset, dirOutput, fileIgnoreColumns, args.number, args.seq, args.divider)
