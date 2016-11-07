@@ -1,11 +1,12 @@
-# Ignore all files in the Data directory.
-Data/*
+# Ignore all files in the Data directory except the default file of codes to ignore.
+Data/
+!Data/IgnoredCodes.txt
 
 # Ignore all files in the Results directory.
-Results/*
+Results/
 
 # Ignore all files in the Papers directory.
-Papers/*
+Papers/
 
 # Ignore compiled Python files.
 *.pyc
