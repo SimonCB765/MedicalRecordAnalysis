@@ -24,7 +24,7 @@ parser = argparse.ArgumentParser(description="Generate processed datafiles from 
 # Optional arguments.
 parser.add_argument("-i", "--ignore",
                     help="The location of the file containing the codes that should be ignored and not used to create "
-                         "the final datasets. Default: a file called IgnoredCodes.txt in the Data drectory.",
+                         "the final datasets. Default: a file called IgnoredCodes.txt in the Data directory.",
                     type=str)
 parser.add_argument("-o", "--output",
                     help="The location of the directory to write the output files to. Default: a directory called "
