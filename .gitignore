@@ -1,6 +1,7 @@
 # Ignore all files in the Data directory except the default file of codes to ignore.
 Data/
 !Data/IgnoredCodes.txt
+!Data/IgnoredColumns.txt
 
 # Ignore all files in the Results directory.
 Results/
