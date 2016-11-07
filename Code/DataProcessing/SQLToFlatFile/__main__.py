@@ -1,4 +1,4 @@
-"""Code to initiate the processing of the QICKD SQL files and generation of the datasets."""
+"""Code to initiate the processing of the generation of datasets from data in SQL files."""
 
 # Python imports.
 import argparse
