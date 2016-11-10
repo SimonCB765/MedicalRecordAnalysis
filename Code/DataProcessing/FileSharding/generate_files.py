@@ -46,33 +46,65 @@ def main(fileDataset, dirOutput, fileIgnoreColumns=None, datapointsPerFile=1000,
             # Add the first column (that contains the IDs of the datapoints) to the list of columns to ignore when the
             # data is not sequence data.
             columnsToIgnore |= {0}
+        columnsToIgnore = list(columnsToIgnore)
 
         # Fill up each output file sequentially. The data from the large file will therefore still be sequential in
-        # each small file.
+        # each smaller file.
         datapointsAdded = 0  # The number of datapoints added to the currently open file.
         currentFileNumber = 0  # The number of the current file having data added to it.
-        fidShard = open(os.path.join(dirOutput, "Shard_{:d}.txt".format(currentFileNumber)), 'w')  # Sharded data file.
+        fileCurrentShard = os.path.join(dirOutput, "Shard_{:d}.txt".format(currentFileNumber))  # Name of shard file.
+        fidShard = tf.python_io.TFRecordWriter(fileCurrentShard)  # The TFRecord writer.
         for line in fidDataset:
+            # Process the line.
+            line = (line.strip()).split(separator)
+
             # If the current sharded file has been filled up open another file.
             if datapointsAdded == datapointsPerFile:
                 fidShard.close()
                 datapointsAdded = 0
                 currentFileNumber += 1
-                fidShard = open(os.path.join(dirOutput, "Shard_{:d}.txt".format(currentFileNumber)), 'w')
+                fileCurrentShard = os.path.join(dirOutput, "Shard_{:d}.txt".format(currentFileNumber))
+                fidShard = tf.python_io.TFRecordWriter(fileCurrentShard)
 
-            # Write the data on the line out to the shard file.
+            # Write the data on the line out to the shard file. This involves packing the data in an Example protocol
+            # buffer, serialising it and then writing it out.
             if isDataSequence:
+                # The data is sequence data.
                 pass
             else:
-                pass
+                # The data is not sequence data, so just read it into a numpy array and remove the columns that aren't
+                # needed.
+                data = np.asarray(line, dtype=np.float)
+                mask = np.ones_like(data, dtype=np.bool)
+                mask[columnsToIgnore] = False
+                data = data[mask]
+
+                # Create the Example protocol buffer
+                # (https://github.com/tensorflow/tensorflow/blob/master/tensorflow/core/example/example.proto).
+                example = tf.train.Example(
+                    # The Example protocol buffer contains a Features protocol buffer
+                    # (https://github.com/tensorflow/tensorflow/blob/master/tensorflow/core/example/feature.proto).
+                    features=tf.train.Features(
+                        # The Features protocol buffer contains a list of features, which are one of either a
+                        # bytes_list, float_list or int64_list.
+                        feature={
+                            "data": _float_feature(data)
+                        }
+                    )
+                )
+                fidShard.write(example.SerializeToString())
             datapointsAdded += 1
 
         fidShard.close()  # Close the final sharded file.
 
 
+def _bytes_feature(value):
+    return tf.train.Feature(bytes_list=tf.train.BytesList(value=value))
+
+
 def _float_feature(value):
-    return tf.train.Feature(float_list=tf.train.FloatList(value=[value]))
+    return tf.train.Feature(float_list=tf.train.FloatList(value=value))
 
 
 def _int64_feature(value):
-    return tf.train.Feature(int64_list=tf.train.Int64List(value=[value]))
+    return tf.train.Feature(int64_list=tf.train.Int64List(value=value))
