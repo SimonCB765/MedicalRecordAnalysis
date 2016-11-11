@@ -8,9 +8,11 @@ import numpy as np
 import tensorflow as tf
 
 
-def main(fileDataset, dirOutput, fileIgnoreColumns=None, datapointsPerFile=1000, isDataSequence=False, separator='\t',
-         isIDColumnPresent=True):
+def unsupervised(fileDataset, dirOutput, fileIgnoreColumns=None, datapointsPerFile=1000, isDataSequence=False,
+                 separator='\t', isIDColumnPresent=True):
     """Turn a file containing an entire dataset into multiple smaller files containing non-overlapping subsets of it.
+
+    This method is designed for data without any target labels.
 
     :param fileDataset:         The location of the large dataset containing all datapoints.
     :type fileDataset:          str
