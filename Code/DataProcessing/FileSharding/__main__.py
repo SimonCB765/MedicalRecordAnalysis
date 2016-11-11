@@ -45,7 +45,9 @@ parser.add_argument("-o", "--output",
                     type=str)
 parser.add_argument("-s", "--seq",
                     action="store_true",
-                    help="Whether the data in the file contains sequence data or not. Default: not sequence data.")
+                    help="Whether the data in the file contains sequence data or not. If the file contains sequence "
+                         "data, then the first column in the file is assumed to contain IDs that can be used to group "
+                         "datapoints into sequences. Default: not sequence data.")
 parser.add_argument("-w", "--overwrite",
                     action="store_true",
                     help="Whether the output directory should be overwritten if it exists. Default: do not overwrite.")
@@ -109,4 +111,4 @@ except Exception as e:
 # ====================== #
 # Shard the Dataset File #
 # ====================== #
-generate_files.unsupervised(fileDataset, dirOutput, fileIgnoreColumns, args.number, args.seq, args.divider)
+generate_files.unsupervised(fileDataset, dirOutput, fileIgnoreColumns, args.number, args.seq, args.divider, args.seq)
