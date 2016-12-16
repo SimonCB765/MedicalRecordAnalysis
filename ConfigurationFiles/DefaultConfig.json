@@ -1,0 +1,10 @@
+{
+  "DataProcessing": {
+    "CodesToIgnore": [],
+    "CodesToKeep": [],
+    "Converter": "JournalTable",
+    "PatientsToIgnore": [],
+    "PatientsToKeep": [],
+    "Separator": "\t"
+  }
+}

@@ -1,0 +1,39 @@
+{
+  "$schema": "http://json-schema.org/draft-04/schema#",
+  "title": "MedicalRecordAnalysis",
+  "description": "A configuration file used in the analysis of medical records.",
+  "type": "object",
+
+  "definitions": {
+    "StringArray": {
+      "default": [],
+      "description": "An array of strings.",
+      "items": {"type": "string"},
+      "type": "array"
+    }
+  },
+
+  "properties": {
+    "DataProcessing": {
+      "description": "Parameters for processing the data.",
+      "type": "object",
+
+      "properties": {
+        "CodesToIgnore": {"$ref": "#/definitions/StringArray"},
+        "CodesToKeep": {"$ref": "#/definitions/StringArray"},
+        "Converter": {
+          "default": "",
+          "description": "The converter to use to create the flat file dataset.",
+          "type": "string"
+        },
+        "PatientsToIgnore": {"$ref": "#/definitions/StringArray"},
+        "PatientsToKeep": {"$ref": "#/definitions/StringArray"},
+        "Separator": {
+          "default": "\t",
+          "description": "The separator between the codes in the flat file.",
+          "type": "string"
+        }
+      }
+    }
+  }
+}

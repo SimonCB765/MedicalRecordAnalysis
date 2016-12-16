@@ -17,7 +17,7 @@ def main(patientID, patientData, patientDOB, patientGender, outputFiles, uniqueC
     :type patientData:      list[dict[str, str]]
     :param patientDOB:      The patient's date of birth.
     :type patientDOB:       datetime.datetime
-    :param patientGender:   The gender of the patient. 1 indicates a male and 0 a female.
+    :param patientGender:   The gender of the patient ('M' or 'F').
     :type patientGender:    str
     :param outputFiles:     The locations of the cleaned dataset files.
     :type outputFiles:      dict
