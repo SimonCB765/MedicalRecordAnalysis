@@ -51,19 +51,12 @@ def main(dirProcessedData, dirOutput, config):
 
     LOGGER.info("Starting journal table dataset generation.")
 
-    # Determine the codes and patients to ignore/keep. If not codes to ignore are specified, then don't ignore any.
-    # If no codes to keep are specified, then keep all.
-    codesToIgnore = config.get_param(["DataProcessing", "CodesToIgnore"])[1]
-    codesToIgnore = re.compile('|'.join(codesToIgnore)) if codesToIgnore else re.compile("a^")
-    codesToKeep = config.get_param(["DataProcessing", "CodesToKeep"])[1]
-    codesToKeep = re.compile('|'.join(codesToKeep)) if codesToKeep else re.compile("")
+    # Extract the patient demographics and determine which patients should be used.
+    patientData = {}
     patientsToIgnore = config.get_param(["DataProcessing", "PatientsToIgnore"])[1]
     patientsToIgnore = re.compile('|'.join(patientsToIgnore)) if patientsToIgnore else re.compile("a^")
     patientsToKeep = config.get_param(["DataProcessing", "PatientsToKeep"])[1]
     patientsToKeep = re.compile('|'.join(patientsToKeep)) if patientsToKeep else re.compile("")
-
-    # Extract the patient demographics.
-    patientData = {}
     with open(filePatientData, 'r') as fidPatientData:
         _ = fidPatientData.readline()  # Strip the header.
         for line in fidPatientData:
@@ -71,25 +64,31 @@ def main(dirProcessedData, dirOutput, config):
             patientID = chunks[0]
             DOB = chunks[1]
             patientGender = chunks[2]
-            patientData[patientID] = {"DOB": DOB, "Gender": patientGender}
+            if patientsToKeep.match(patientID) and (not patientsToIgnore.match(patientID)):
+                patientData[patientID] = {"DOB": DOB, "Gender": patientGender}
 
-    # Extract the list of codes in the dataset.
+    # Extract the list of codes in the dataset and determine which ones should be used.
     uniqueCodes = []
     codeAssociatedValues = {}
+    codesToIgnore = config.get_param(["DataProcessing", "CodesToIgnore"])[1]
+    codesToIgnore = re.compile('|'.join(codesToIgnore)) if codesToIgnore else re.compile("a^")
+    codesToKeep = config.get_param(["DataProcessing", "CodesToKeep"])[1]
+    codesToKeep = re.compile('|'.join(codesToKeep)) if codesToKeep else re.compile("")
     with open(fileCodes, 'r') as fidCodes:
         _ = fidCodes.readline()  # Strip the header.
         for line in fidCodes:
             chunks = (line.strip()).split('\t')
             code = chunks[0]
-            uniqueCodes.append(code)
-            codeAssociatedValues[code] = {"Val1": bool(int(chunks[1])), "Val2": bool(int(chunks[2]))}
+            if codesToKeep.match(code) and (not codesToIgnore.match(code)):
+                uniqueCodes.append(code)
+                codeAssociatedValues[code] = {"Val1": bool(int(chunks[1])), "Val2": bool(int(chunks[2]))}
 
     # Create the files to record the generated datasets in.
     outputFiles = file_generator.main(dirOutput, uniqueCodes, codeAssociatedValues)
 
     # Extract the information about each patient's history.
     LOGGER.info("Now generating patient histories.")
-    patientsProcessed = 0
+    patientsSaved = 0
     currentPatient = None  # The ID of the patient who's record is currently being built.
     patientHistory = []  # The data for the current patient.
     with open(fileJournalTable, 'r') as fidJournalTable:
@@ -102,36 +101,34 @@ def main(dirProcessedData, dirOutput, config):
             value1 = float(chunks[3])
             value2 = float(chunks[4])
 
-            if patientID != currentPatient and currentPatient:
-                # A new patient has been found and this is not the first line of the file, so record the old
-                # patient and reset the patient data for the new patient.
+            # Only record information about patients we're interested in.
+            if patientID in patientData:
+                if patientID != currentPatient and currentPatient:
+                    # A new patient has been found and this is not the first line of the file, so record the old
+                    # patient and reset the patient data for the new patient.
 
-                # Output an update.
-                patientsProcessed += 1
-                if patientsProcessed % 100 == 0:
-                    LOGGER.info("Processed {:d} patients ({:.2f}%).".format(
-                        patientsProcessed, (patientsProcessed / len(patientData)) * 100
-                    ))
+                    # Output an update.
+                    patientsSaved += 1
+                    if patientsSaved % 100 == 0:
+                        LOGGER.info("Saved {:d} patients ({:.2f}%).".format(
+                            patientsSaved, (patientsSaved / len(patientData)) * 100
+                        ))
 
-                if patientsToKeep.match(currentPatient) and (not patientsToIgnore.match(currentPatient)) \
-                        and patientHistory:
-                    # Only output the patient's information if they are meant to be recorded and they have some codes
-                    # in their history that are meant to be output.
+                    # Output the patient's information.
                     dateOfBirth = datetime.datetime.strptime(patientData[currentPatient]["DOB"], "%Y")
                     patientGender = patientData[currentPatient]["Gender"]
                     save_patient_data.main(
                         currentPatient, patientHistory, dateOfBirth, patientGender, outputFiles, uniqueCodes
                     )
-                patientHistory = []
-            currentPatient = patientID  # Update the current patient's ID to be this patient's.
+                    patientHistory = []
+                currentPatient = patientID  # Update the current patient's ID to be this patient's.
 
-            # Add this patient-code association to the patient's history if the code is to be output.
-            if codesToKeep.match(code) and (not codesToIgnore.match(code)):
-                patientHistory.append({"Code": code, "Date": date, "Val1": value1, "Val2": value2})
-        # Record the final patient's data.
-        if patientsToKeep.match(currentPatient) and (not patientsToIgnore.match(currentPatient)) and patientHistory:
-            # Only output the patient's information if they are meant to be recorded and they have some codes
-            # in their history that are meant to be output.
+                # Add this patient-code association to the patient's history if the code is to be output.
+                if code in codeAssociatedValues:
+                    patientHistory.append({"Code": code, "Date": date, "Val1": value1, "Val2": value2})
+        # Record the final patient's data if information about them was extracted. This wil only have occurred if the
+        # patient is meant to have their data output.
+        if patientHistory:
             dateOfBirth = datetime.datetime.strptime(patientData[currentPatient]["DOB"], "%Y")
             patientGender = patientData[currentPatient]["Gender"]
             save_patient_data.main(currentPatient, patientHistory, dateOfBirth, patientGender, outputFiles, uniqueCodes)
