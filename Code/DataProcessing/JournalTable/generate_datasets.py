@@ -1,7 +1,6 @@
 """Generate datasets from SQL dump files."""
 
 # Python imports.
-from collections import defaultdict
 import datetime
 import logging
 import os
@@ -10,38 +9,41 @@ import sys
 
 # User imports.
 from . import file_generator
-from . import parse_patient_entry
 from . import save_patient_data
 
 # Globals.
 LOGGER = logging.getLogger(__name__)
 
 
-def main(dirSQLFiles, dirOutput, config):
-    """Generate flat file datasets by processing a set of SQL files containing patient medical data.
+def main(dirProcessedData, dirOutput, config):
+    """Generate flat file datasets by processing a set of pre-processed journal table files.
 
-    Patient history data is assumed to be stored in a file called journal.sql within the SQL file directory. Within this
+    Patient history data is assumed to be stored in a file called JournalTable.tsv. Within this
     file a patient's history is assumed to be recorded consecutively (i.e. a patient has all their records recorded
     one after the other with no other patient's records in between).
 
-    :param dirSQLFiles:     The location of the directory containing the SQL files of the patient data.
-    :type dirSQLFiles:      str
-    :param dirOutput:       The location of the directory where the processed flat files should be saved.
-    :type dirOutput:        str
-    :param config:          The object containing the configuration parameters for the flat file generation.
-    :type config:           JsonschemaManipulation.Configuration
+    :param dirProcessedData:    The location of the directory containing the processed journal table files.
+    :type dirProcessedData:     str
+    :param dirOutput:           The location of the directory where the flat files should be saved.
+    :type dirOutput:            str
+    :param config:              The object containing the configuration parameters for the flat file generation.
+    :type config:               JsonschemaManipulation.Configuration
 
     """
 
     # Get the files for the SQL tables we're interested in. These would be the journal table and the patient table.
     isError = False
-    fileJournalTable = os.path.join(dirSQLFiles, "journal.sql")
+    fileJournalTable = os.path.join(dirProcessedData, "JournalTable.tsv")
     if not os.path.isfile(fileJournalTable):
-        LOGGER.error("There is no journal.sql file within the input location supplied ({:s}).".format(fileJournalTable))
+        LOGGER.error("There is no JournalTable.tsv file in the input directory ({:s}).".format(fileJournalTable))
         isError = True
-    filePatientTable = os.path.join(dirSQLFiles, "patient.sql")
-    if not os.path.isfile(filePatientTable):
-        LOGGER.error("There is no patient.sql file within the input location supplied ({:s}).".format(filePatientTable))
+    filePatientData = os.path.join(dirProcessedData, "PatientDemographics.tsv")
+    if not os.path.isfile(filePatientData):
+        LOGGER.error("There is no PatientDemographics.tsv file in the input directory ({:s}).".format(filePatientData))
+        isError = True
+    fileCodes = os.path.join(dirProcessedData, "Codes.txt")
+    if not os.path.isfile(fileCodes):
+        LOGGER.error("There is no Codes.txt file in the input directory ({:s}).".format(fileCodes))
         isError = True
     if isError:
         print("\nErrors were found while attempting to access the input files during flat file generation.\n")
@@ -60,99 +62,74 @@ def main(dirSQLFiles, dirOutput, config):
 
     # Extract the patient demographics.
     patientData = {}
-    with open(filePatientTable, 'r') as fidPatientTable:
-        for line in fidPatientTable:
-            if line.startswith("insert"):
-                # Found a line containing patient details.
-                line = line[84:]  # Strip of the SQL insert syntax at the beginning.
-                line = line[:-3]  # Strip off the ");\n" at the end.
-                chunks = line.split(',')
-                patientID = chunks[0]
-                DOB = chunks[1]
-                patientGender = 'M' if chunks[3] == '1' else 'F'  # A '1' indicates a male and a '0' a female.
-                patientData[patientID] = {"DOB": DOB, "Gender": patientGender}  # Records patient's demographics.
+    with open(filePatientData, 'r') as fidPatientData:
+        _ = fidPatientData.readline()  # Strip the header.
+        for line in fidPatientData:
+            chunks = line.split('\t')
+            patientID = chunks[0]
+            DOB = chunks[1]
+            patientGender = chunks[2]
+            patientData[patientID] = {"DOB": DOB, "Gender": patientGender}
 
-    # Identify the codes used in the dataset and whether they have any data associated with them.
-    # This will cause two passes through the patient data. However, without this the entire dataset will need to be
-    # stored in memory, as no patient history can be written out without knowing all the codes in the dataset.
-    LOGGER.info("Now determining patients and codes in the dataset.")
-    count = 0  # TODO remove this
-    uniqueCodes = set()  # The codes used in the dataset.
-    patientsToOutput = set()  # The patients in the dataset that should be output.
-    codeAssociatedValues = defaultdict(lambda: {"Val1": False, "Val2": False})  # Value types associated with codes.
-    with open(fileJournalTable, 'r') as fidJournalTable:
-        for line in fidJournalTable:
-            if line.startswith("insert"):
-                # The line contains information about a row in the journal table.
-                entries = parse_patient_entry.main(line)
-
-                if entries:
-                    # The entry on this line contained a code, so add the code to the set of unique codes if it is not
-                    # being ignored.
-                    patientID = entries[0]
-                    code = entries[1]
-                    if (patientsToKeep.match(patientID) and not patientsToIgnore.match(patientID)) and \
-                            (codesToKeep.match(code) and not codesToIgnore.match(code)):
-                        uniqueCodes.add(code)
-                        patientsToOutput.add(patientID)
-                        codeAssociatedValues[code]["Val1"] |= float(entries[3]) != 0
-                        codeAssociatedValues[code]["Val2"] |= float(entries[4]) != 0
-
-                # TODO remove this
-                count += 1
-                if count > 1000000:
-                    break
-                # TODO
-    uniqueCodes = sorted(uniqueCodes)
+    # Extract the list of codes in the dataset.
+    uniqueCodes = []
+    codeAssociatedValues = {}
+    with open(fileCodes, 'r') as fidCodes:
+        _ = fidCodes.readline()  # Strip the header.
+        for line in fidCodes:
+            chunks = (line.strip()).split('\t')
+            code = chunks[0]
+            uniqueCodes.append(code)
+            codeAssociatedValues[code] = {"Val1": bool(int(chunks[1])), "Val2": bool(int(chunks[2]))}
 
     # Create the files to record the generated datasets in.
     outputFiles = file_generator.main(dirOutput, uniqueCodes, codeAssociatedValues)
 
     # Extract the information about each patient's history.
     LOGGER.info("Now generating patient histories.")
-    patientsSaved = 0
+    patientsProcessed = 0
     currentPatient = None  # The ID of the patient who's record is currently being built.
     patientHistory = []  # The data for the current patient.
     with open(fileJournalTable, 'r') as fidJournalTable:
+        _ = fidJournalTable.readline()  # Strip the header.
         for line in fidJournalTable:
-            if line[:6] == "insert":
-                # The line contains information about a row in the journal table.
-                entries = parse_patient_entry.main(line)
+            chunks = (line.strip()).split('\t')
+            patientID = chunks[0]
+            code = chunks[1]
+            date = datetime.datetime.strptime(chunks[2], "%Y-%m-%d")  # Convert YYYY-MM-DD date to datetime.
+            value1 = float(chunks[3])
+            value2 = float(chunks[4])
 
-                if entries:
-                    # The entry on this line contained all the information needed to record it (for example the code was
-                    # not missing), so get the details of this patient-code association.
-                    patientID = entries[0]
-                    code = entries[1]
-                    date = datetime.datetime.strptime(entries[2], "%Y-%m-%d")  # Convert YYYY-MM-DD date to datetime.
-                    value1 = float(entries[3])
-                    value2 = float(entries[4])
+            if patientID != currentPatient and currentPatient:
+                # A new patient has been found and this is not the first line of the file, so record the old
+                # patient and reset the patient data for the new patient.
 
-                    if patientID != currentPatient and currentPatient:
-                        # A new patient has been found and this is not the first line of the file, so record the old
-                        # patient and reset the patient data for the new patient.
-                        if currentPatient in patientsToOutput:
-                            # Only output the patient's information if they are meant to be recorded.
-                            dateOfBirth = datetime.datetime.strptime(patientData[currentPatient]["DOB"], "%Y")
-                            patientGender = patientData[currentPatient]["Gender"]
-                            save_patient_data.main(
-                                currentPatient, patientHistory, dateOfBirth, patientGender, outputFiles, uniqueCodes
-                            )
+                # Output an update.
+                patientsProcessed += 1
+                if patientsProcessed % 100 == 0:
+                    LOGGER.info("Processed {:d} patients ({:.2f}%).".format(
+                        patientsProcessed, (patientsProcessed / len(patientData)) * 100
+                    ))
 
-                            # Output an update.
-                            patientsSaved += 1
-                            if patientsSaved % 100 == 0:
-                                LOGGER.info("Saved {:d} patients ({:.2f}%).".format(
-                                    patientsSaved, (patientsSaved / len(patientsToOutput)) * 100
-                                ))
-                        patientHistory = []
-                    currentPatient = patientID  # Update the current patient's ID to be this patient's.
+                if patientsToKeep.match(currentPatient) and (not patientsToIgnore.match(currentPatient)) \
+                        and patientHistory:
+                    # Only output the patient's information if they are meant to be recorded and they have some codes
+                    # in their history that are meant to be output.
+                    dateOfBirth = datetime.datetime.strptime(patientData[currentPatient]["DOB"], "%Y")
+                    patientGender = patientData[currentPatient]["Gender"]
+                    save_patient_data.main(
+                        currentPatient, patientHistory, dateOfBirth, patientGender, outputFiles, uniqueCodes
+                    )
+                patientHistory = []
+            currentPatient = patientID  # Update the current patient's ID to be this patient's.
 
-                    # Add this patient-code association to the patient's history.
-                    patientHistory.append({"Code": code, "Date": date, "Val1": value1, "Val2": value2})
+            # Add this patient-code association to the patient's history if the code is to be output.
+            if codesToKeep.match(code) and (not codesToIgnore.match(code)):
+                patientHistory.append({"Code": code, "Date": date, "Val1": value1, "Val2": value2})
         # Record the final patient's data.
-        if currentPatient in patientsToOutput:
-            # Only output the patient's information if they are meant to be recorded.
+        if patientsToKeep.match(currentPatient) and (not patientsToIgnore.match(currentPatient)) and patientHistory:
+            # Only output the patient's information if they are meant to be recorded and they have some codes
+            # in their history that are meant to be output.
             dateOfBirth = datetime.datetime.strptime(patientData[currentPatient]["DOB"], "%Y")
             patientGender = patientData[currentPatient]["Gender"]
             save_patient_data.main(currentPatient, patientHistory, dateOfBirth, patientGender, outputFiles, uniqueCodes)

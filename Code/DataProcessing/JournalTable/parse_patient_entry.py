@@ -8,9 +8,6 @@ def main(line):
     :type line:     str
     :return:        The entries on the line. The entries will be ordered (in ascending index order) as:
                         patient id, code, date, Val1, Val2, free text
-                    If the line does not contain a code, if for example the line looks like:
-                        3123336,'','2004-11-01',0.0000,0.0000,null
-                        then an empty list is returned.
     :rtype:         list
 
     """
@@ -61,12 +58,6 @@ def main(line):
 
     # Update the code entry.
     code = entries[1].split(',')[0]  # If the code is recorded with its values, then just get the code.
-    if code:
-        # There was a code recorded for this association.
-        entries[1] = code
-    else:
-        # There was no code recorded for this association. For example, the association looks like:
-        # 3123336,'','2004-11-01',0.0000,0.0000,null
-        entries = []
+    entries[1] = code
 
     return entries

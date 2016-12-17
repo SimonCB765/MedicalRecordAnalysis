@@ -3,6 +3,7 @@
 # Python imports.
 import argparse
 import json
+import logging
 import logging.config
 import os
 import shutil
@@ -163,14 +164,26 @@ if not args.noProcess:
 
     if conversionToUse == "JournalTable":
         # Convert the data from a journal table format to a flat file.
+
         if not os.path.isdir(inputContent):
             # The input was not a directory as needed.
             logger.error("The input location must be a directory for journal table conversion.")
-            print("\nErrors were encountered while validating the input arguments. Please see the log file for "
-                  "details.\n")
+            print("\nErrors were encountered prior to processing the journal table..\n")
             sys.exit()
 
-        JournalTable.generate_datasets.main(inputContent, dirOutputDataPrep, config)
+        dirProcessedData = os.path.join(inputContent, "_ProcessedJournalTable_")
+        if os.path.isdir(dirProcessedData):
+            # The data has been processed previously.
+            JournalTable.generate_datasets.main(dirProcessedData, dirOutputDataPrep, config)
+        elif not os.path.exists(dirProcessedData):
+            os.makedirs(dirProcessedData)
+            JournalTable.process_table.main(inputContent, dirProcessedData)
+            JournalTable.generate_datasets.main(dirProcessedData, dirOutputDataPrep, config)
+        else:
+            logger.error("The location to save the processed journal table data already exists and is not a directory.")
+            print("\nErrors were encountered prior to processing the journal table..\n")
+            sys.exit()
+
     else:
         # The converter specified is not valid.
         logger.error("The specified converter {:s} is not a valid converter choice.".format(conversionToUse))
