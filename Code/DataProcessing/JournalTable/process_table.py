@@ -37,6 +37,8 @@ def main(dirSQLFiles, dirProcessedData):
         print("\nErrors were found while attempting to access the input files during flat file generation.\n")
         sys.exit()
 
+    LOGGER.info("Starting journal table pre-processing.")
+
     # Extract the patient demographics of interest.
     filePatientDemographics = os.path.join(dirProcessedData, "PatientDemographics.tsv")
     with open(filePatientTable, 'r') as fidPatientTable, open(filePatientDemographics, 'w') as fidDemographics:
@@ -54,7 +56,6 @@ def main(dirSQLFiles, dirProcessedData):
 
     # Convert the journal table into a standard format, ignoring any entries that are missing either a patient ID or
     # a code.
-    LOGGER.info("Now processing the journal table.")
     fileProcessedJournal = os.path.join(dirProcessedData, "JournalTable.tsv")
     numEvents = 0
     numValidEvents = 0

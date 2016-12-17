@@ -49,6 +49,8 @@ def main(dirProcessedData, dirOutput, config):
         print("\nErrors were found while attempting to access the input files during flat file generation.\n")
         sys.exit()
 
+    LOGGER.info("Starting journal table dataset generation.")
+
     # Determine the codes and patients to ignore/keep. If not codes to ignore are specified, then don't ignore any.
     # If no codes to keep are specified, then keep all.
     codesToIgnore = config.get_param(["DataProcessing", "CodesToIgnore"])[1]
