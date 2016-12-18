@@ -76,13 +76,17 @@ def main(dirOutput, uniqueCodes, codeAssociatedValues):
         fidBinYearC.write(header)
 
         # Create the header for the raw data datasets.
+        codeString = ""
         for i in uniqueCodes:
             if codeAssociatedValues[i]["Val1"] and codeAssociatedValues[i]["Val2"]:
-                codeString = codeString.replace("\t{:s}\t".format(i), "\t{0:s}_Val1\t{0:s}_Val2\t".format(i))
+                codeString += "\t{0:s}_Val1\t{0:s}_Val2".format(i)
             elif codeAssociatedValues[i]["Val1"]:
-                codeString = codeString.replace("\t{:s}\t".format(i), "\t{:s}_Val1\t".format(i))
+                codeString += "\t{:s}_Val1".format(i)
             elif codeAssociatedValues[i]["Val2"]:
-                codeString = codeString.replace("\t{:s}\t".format(i), "\t{:s}_Val2\t".format(i))
+                codeString += "\t{:s}_Val2".format(i)
+            else:
+                codeString += "\t{:s}".format(i)
+        codeString = codeString[1:]  # Strip off initial '\t' character.
         header = "PatientID\tAge\tGender\t{0:s}\n".format(codeString)
         fidRawHist.write(header)
         fidRawVisNC.write(header)
