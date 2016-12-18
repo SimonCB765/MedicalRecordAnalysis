@@ -2,6 +2,7 @@
 
 # Python imports.
 from collections import defaultdict
+import datetime
 import logging
 import os
 import sys
@@ -62,6 +63,8 @@ def main(dirSQLFiles, dirProcessedData):
     uniqueCodes = set()  # The codes used in the dataset.
     uniquePatients = set()  # The patients in the dataset.
     codeAssociatedValues = defaultdict(lambda: {"Val1": False, "Val2": False})  # Value types associated with codes.
+    currentPatient = None  # The ID of the patient who's record is currently being built.
+    patientHistory = defaultdict(list)  # The data for the current patient.
     with open(fileJournalTable, 'r') as fidJournalTable, open(fileProcessedJournal, 'w') as fidProcessed:
         fidProcessed.write("PatientID\tCode\tDate\tVal1\tVal2\tFreeText\n")
         for line in fidJournalTable:
@@ -71,6 +74,7 @@ def main(dirSQLFiles, dirProcessedData):
                 entries = parse_patient_entry.main(line)
                 patientID = entries[0]
                 code = entries[1]
+                date = datetime.datetime.strptime(entries[2], "%Y-%m-%d")  # Convert YYYY-MM-DD date to datetime.
 
                 if patientID and code:
                     # The entry is valid as it has both a patient ID and code recorded for it.
@@ -79,15 +83,31 @@ def main(dirSQLFiles, dirProcessedData):
                     uniquePatients.add(patientID)
                     codeAssociatedValues[code]["Val1"] |= float(entries[3]) != 0
                     codeAssociatedValues[code]["Val2"] |= float(entries[4]) != 0
-                    fidProcessed.write("{:s}\n".format('\t'.join(entries)))
 
-    uniqueCodes = sorted(uniqueCodes)
+                    if patientID != currentPatient and currentPatient:
+                        # A new patient has been found and this is not the first line of the file, so record the old
+                        # patient and reset the patient data for the new patient.
+
+                        # Write out the patient's history sorted by date from oldest to newest.
+                        for i in sorted(patientHistory):
+                            for j in patientHistory[i]:
+                                fidProcessed.write("{:s}\n".format('\t'.join(j)))
+
+                        # Reset the history for the next patient.
+                        patientHistory.clear()
+                    currentPatient = patientID
+
+                    # Add the entry to the patient's history.
+                    patientHistory[date].append(entries)
+
+    # Log statistics about the dataset.
     LOGGER.info("{:d} events found in the dataset.".format(numEvents))
     LOGGER.info("{:d} valid events found in the dataset.".format(numValidEvents))
     LOGGER.info("{:d} unique patients found in the dataset.".format(len(uniquePatients)))
     LOGGER.info("{:d} unique codes found in the dataset.".format(len(uniqueCodes)))
 
     # Write out the codes in the dataset.
+    uniqueCodes = sorted(uniqueCodes)
     fileCodes = os.path.join(dirProcessedData, "Codes.txt")
     with open(fileCodes, 'w') as fidCodes:
         fidCodes.write("Code\tHasVal1Value\tHasVal2Value\n")
