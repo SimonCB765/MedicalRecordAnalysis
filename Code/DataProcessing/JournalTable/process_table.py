@@ -66,7 +66,7 @@ def main(dirSQLFiles, dirProcessedData):
     currentPatient = None  # The ID of the patient who's record is currently being built.
     patientHistory = defaultdict(list)  # The data for the current patient.
     with open(fileJournalTable, 'r') as fidJournalTable, open(fileProcessedJournal, 'w') as fidProcessed:
-        fidProcessed.write("PatientID\tCode\tDate\tVal1\tVal2\tFreeText\n")
+        fidProcessed.write("PatientID\tCode\tDate\tYear\tVisitNumber\tVal1\tVal2\tFreeText\n")
         for line in fidJournalTable:
             if line.startswith("insert"):
                 # The line contains information about a row in the journal table.
@@ -89,8 +89,12 @@ def main(dirSQLFiles, dirProcessedData):
                         # patient and reset the patient data for the new patient.
 
                         # Write out the patient's history sorted by date from oldest to newest.
+                        visitNumber = -1
                         for i in sorted(patientHistory):
+                            visitNumber += 1
                             for j in patientHistory[i]:
+                                j.insert(3, j[2][:4])
+                                j.insert(4, str(visitNumber))
                                 fidProcessed.write("{:s}\n".format('\t'.join(j)))
 
                         # Reset the history for the next patient.
