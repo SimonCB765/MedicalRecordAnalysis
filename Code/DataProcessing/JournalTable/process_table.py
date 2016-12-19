@@ -66,7 +66,6 @@ def main(dirSQLFiles, dirProcessedData):
     uniqueCodes = set()  # The codes used in the dataset.
     uniquePatients = set()  # The patients in the dataset.
     codeAssociatedValues = defaultdict(lambda: {"Val1": False, "Val2": False})  # Value types associated with codes.
-    patientsWithCode = defaultdict(set)  # The patients that each code is associated with.
     with open(fileJournalTable, 'r') as fidJournalTable, open(fileProcessedJournal, 'w') as fidProcessed, \
             open(filePatientDemographics, 'w') as fidDemographics:
         # Write headers.
@@ -89,7 +88,6 @@ def main(dirSQLFiles, dirProcessedData):
                     uniqueCodes.add(code)
                     codesPatientHas.add(code)
                     uniquePatients.add(patientID)
-                    patientsWithCode[code].add(patientID)
                     codeAssociatedValues[code]["Val1"] |= float(entries[3]) != 0
                     codeAssociatedValues[code]["Val2"] |= float(entries[4]) != 0
 
@@ -135,10 +133,7 @@ def main(dirSQLFiles, dirProcessedData):
         fidCodes.write("Code\tHasVal1Value\tHasVal2Value\tPatientsWithCode\n")
         for i in uniqueCodes:
             fidCodes.write(
-                "{:s}\t{:d}\t{:d}\t{:s}\n".format(
-                    i, codeAssociatedValues[i]["Val1"], codeAssociatedValues[i]["Val2"],
-                    ','.join(sorted(patientsWithCode[i]))
-                )
+                "{:s}\t{:d}\t{:d}\n".format(i, codeAssociatedValues[i]["Val1"], codeAssociatedValues[i]["Val2"])
             )
 
     # Write out statistics of the dataset.
