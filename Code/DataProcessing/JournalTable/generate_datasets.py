@@ -52,12 +52,19 @@ def main(dirProcessedData, dirOutput, config):
 
     LOGGER.info("Starting journal table dataset generation.")
 
-    # Extract the patient demographics and determine which patients should be used.
-    patientData = {}
+    # Create patient and code ignore/keep regular expressions.
     patientsToIgnore = config.get_param(["DataProcessing", "PatientsToIgnore"])[1]
     patientsToIgnore = re.compile('|'.join(patientsToIgnore)) if patientsToIgnore else re.compile("a^")
     patientsToKeep = config.get_param(["DataProcessing", "PatientsToKeep"])[1]
     patientsToKeep = re.compile('|'.join(patientsToKeep)) if patientsToKeep else re.compile("")
+    codesToIgnore = config.get_param(["DataProcessing", "CodesToIgnore"])[1]
+    codesToIgnore = re.compile('|'.join(codesToIgnore)) if codesToIgnore else re.compile("a^")
+    codesToKeep = config.get_param(["DataProcessing", "CodesToKeep"])[1]
+    codesToKeep = re.compile('|'.join(codesToKeep)) if codesToKeep else re.compile("")
+
+    # Extract the patient demographics and determine which patients should be used.
+    validPatientData = {}
+    validCodes = set()  # Valid codes (kept and not ignored) that are contained within a valid patient's history.
     with open(filePatientData, 'r') as fidPatientData:
         _ = fidPatientData.readline()  # Strip the header.
         for line in fidPatientData:
@@ -65,27 +72,27 @@ def main(dirProcessedData, dirOutput, config):
             patientID = chunks[0]
             yearOfBirth = int(chunks[1][:4])
             patientGender = chunks[2]
-            if patientsToKeep.match(patientID) and (not patientsToIgnore.match(patientID)):
-                patientData[patientID] = {"YearOfBirth": yearOfBirth, "Gender": patientGender}
+            codesPatientHas = chunks[3].split(',')
+            validCodesPatientHas = [i for i in codesPatientHas if codesToKeep.match(i) and (not codesToIgnore.match(i))]
 
-    # Extract the list of codes in the dataset and determine which ones should be used.
-    uniqueCodes = []
+            if patientsToKeep.match(patientID) and (not patientsToIgnore.match(patientID)) and validCodesPatientHas:
+                # Only record a patient if they are to be used, not to be ignored and are associated with a code that
+                # is to be kept and not ignored.
+                validCodes.update(validCodesPatientHas)
+                validPatientData[patientID] = {"YearOfBirth": yearOfBirth, "Gender": patientGender}
+
+    # Sort the codes and generate a mapping of codes to their index in the code list.
+    validCodes = sorted(validCodes)
+    codeIndexMap = {j: i for i, j in enumerate(validCodes)}
+
+    # Extract the information about whether codes have any values associated with them.
     codeAssociatedValues = {}
-    codesToIgnore = config.get_param(["DataProcessing", "CodesToIgnore"])[1]
-    codesToIgnore = re.compile('|'.join(codesToIgnore)) if codesToIgnore else re.compile("a^")
-    codesToKeep = config.get_param(["DataProcessing", "CodesToKeep"])[1]
-    codesToKeep = re.compile('|'.join(codesToKeep)) if codesToKeep else re.compile("")
     with open(fileCodes, 'r') as fidCodes:
         _ = fidCodes.readline()  # Strip the header.
         for line in fidCodes:
             chunks = (line.strip()).split('\t')
             code = chunks[0]
-            if codesToKeep.match(code) and (not codesToIgnore.match(code)):
-                uniqueCodes.append(code)
-                codeAssociatedValues[code] = {"Val1": bool(int(chunks[1])), "Val2": bool(int(chunks[2]))}
-
-    # Generate a mapping of codes to their index in the code list.
-    codeIndexMap = {j: i for i, j in enumerate(uniqueCodes)}
+            codeAssociatedValues[code] = {"Val1": bool(int(chunks[1])), "Val2": bool(int(chunks[2]))}
 
     # Extract the information about each patient's history.
     LOGGER.info("Now generating patient histories.")
@@ -105,7 +112,7 @@ def main(dirProcessedData, dirOutput, config):
             open(os.path.join(dirOutput, "RawData_Years_NC.tsv"), 'w') as fidRawYearNC, \
             open(os.path.join(dirOutput, "RawData_Years_C.tsv"), 'w') as fidRawYearC:
         # Create the header for the binary indicator and code count datasets.
-        codeString = '\t'.join(uniqueCodes)
+        codeString = '\t'.join(validCodes)
         header = "PatientID\tAge\tGender\t{:s}\n".format(codeString)
         fidCountHist.write(header)
         fidCountVisNC.write(header)
@@ -120,7 +127,7 @@ def main(dirProcessedData, dirOutput, config):
 
         # Create the header for the raw data datasets.
         codeString = ""
-        for i in uniqueCodes:
+        for i in validCodes:
             if codeAssociatedValues[i]["Val1"] and codeAssociatedValues[i]["Val2"]:
                 codeString += "\t{0:s}_Val1\t{0:s}_Val2".format(i)
             elif codeAssociatedValues[i]["Val1"]:
@@ -142,7 +149,7 @@ def main(dirProcessedData, dirOutput, config):
         currentPatient = None  # The ID of the patient who's record is currently being built.
         currentVisit = 0  # The current patient's current visit number.
         currentYear = None  # The current patient's current year.
-        binaryHistory, countHistory, rawHistory = _init_histories(len(uniqueCodes))
+        binaryHistory, countHistory, rawHistory = _init_histories(len(validCodes))
         with open(fileJournalTable, 'r') as fidJournalTable:
             _ = fidJournalTable.readline()  # Strip the header.
             for line in fidJournalTable:
@@ -154,69 +161,71 @@ def main(dirProcessedData, dirOutput, config):
                 value1 = float(chunks[5])
                 value2 = float(chunks[6])
 
+                if (patientID not in validPatientData) or (code not in validCodes):
+                    # Skip events that contain a patient or code that is not being used.
+                    continue
+
                 if patientsSaved > 1000:
                     break
 
-                # Only record information about patients we're interested in.
-                if patientID in patientData:
-                    if (patientID != currentPatient) and (currentPatient is not None):
-                        # A new patient has been found and this is not the first line of the file, so record the old
-                        # patient and reset the patient data for the new patient.
+                if (patientID != currentPatient) and (currentPatient is not None):
+                    # A new patient has been found and this is not the first line of the file, so record the old
+                    # patient and reset the patient data for the new patient.
 
-                        # Output an update.
-                        patientGender = patientData[currentPatient]["Gender"]
-                        patientsSaved += 1
-                        if patientsSaved % 100 == 0:
-                            LOGGER.info("Saved {:d} patients ({:.2f}%).".format(
-                                patientsSaved, (patientsSaved / len(patientData)) * 100
-                            ))
+                    # Output an update.
+                    patientGender = validPatientData[currentPatient]["Gender"]
+                    patientsSaved += 1
+                    if patientsSaved % 100 == 0:
+                        LOGGER.info("Saved {:d} patients ({:.2f}%).".format(
+                            patientsSaved, (patientsSaved / len(validPatientData)) * 100
+                        ))
 
-                        # Output the patient's information.
-                        _write_entire_history(
-                            binaryHistory, currentPatient, patientGender, fidBinHist, fidBinVisNC,
-                            fidBinVisC, fidBinYearNC, fidBinYearC
-                        )
-                        _write_entire_history(
-                            countHistory, currentPatient, patientGender, fidCountHist, fidCountVisNC,
-                            fidCountVisC, fidCountYearNC, fidCountYearC
-                        )
-                        binaryHistory, countHistory, rawHistory = _init_histories(len(uniqueCodes))
+                    # Output the patient's information.
+                    _write_entire_history(
+                        binaryHistory, currentPatient, patientGender, fidBinHist, fidBinVisNC,
+                        fidBinVisC, fidBinYearNC, fidBinYearC
+                    )
+                    _write_entire_history(
+                        countHistory, currentPatient, patientGender, fidCountHist, fidCountVisNC,
+                        fidCountVisC, fidCountYearNC, fidCountYearC
+                    )
+                    binaryHistory, countHistory, rawHistory = _init_histories(len(validCodes))
 
-                    # Update the information about the patient currently having their history collected.
-                    currentPatient = patientID
-                    currentVisit = visitNumber
-                    currentYear = year
-                    patientAge = currentYear - patientData[currentPatient]["YearOfBirth"]
+                # Update the information about the patient currently having their history collected.
+                currentPatient = patientID
+                currentVisit = visitNumber
+                currentYear = year
+                patientAge = currentYear - validPatientData[currentPatient]["YearOfBirth"]
 
-                    # Update entire history vectors.
-                    for i, j in iteritems(binaryHistory):
-                        if i == "Entire":
-                            j[0] = patientAge
-                            j[1][codeIndexMap[code]] = '1'
-                        elif i.startswith("Year"):
-                            j[currentYear][0] = patientAge
-                            j[currentYear][1][codeIndexMap[code]] = '1'
-                        else:
-                            j[currentVisit][0] = patientAge
-                            j[currentVisit][1][codeIndexMap[code]] = '1'
+                # Update entire history vectors.
+                for i, j in iteritems(binaryHistory):
+                    if i == "Entire":
+                        j[0] = patientAge
+                        j[1][codeIndexMap[code]] = '1'
+                    elif i.startswith("Year"):
+                        j[currentYear][0] = patientAge
+                        j[currentYear][1][codeIndexMap[code]] = '1'
+                    else:
+                        j[currentVisit][0] = patientAge
+                        j[currentVisit][1][codeIndexMap[code]] = '1'
 
-                    # Update count history vectors.
-                    for i, j in iteritems(countHistory):
-                        if i == "Entire":
-                            j[0] = patientAge
-                            j[1][codeIndexMap[code]] = str(max(int(j[1][codeIndexMap[code]]) + 1, 1))
-                        elif i.startswith("Year"):
-                            j[currentYear][0] = patientAge
-                            j[currentYear][1][codeIndexMap[code]] = \
-                                str(max(int(j[currentYear][1][codeIndexMap[code]]) + 1, 1))
-                        else:
-                            j[currentVisit][0] = patientAge
-                            j[currentVisit][1][codeIndexMap[code]] = \
-                                str(max(int(j[currentVisit][1][codeIndexMap[code]]) + 1, 1))
+                # Update count history vectors.
+                for i, j in iteritems(countHistory):
+                    if i == "Entire":
+                        j[0] = patientAge
+                        j[1][codeIndexMap[code]] = str(max(int(j[1][codeIndexMap[code]]) + 1, 1))
+                    elif i.startswith("Year"):
+                        j[currentYear][0] = patientAge
+                        j[currentYear][1][codeIndexMap[code]] = \
+                            str(max(int(j[currentYear][1][codeIndexMap[code]]) + 1, 1))
+                    else:
+                        j[currentVisit][0] = patientAge
+                        j[currentVisit][1][codeIndexMap[code]] = \
+                            str(max(int(j[currentVisit][1][codeIndexMap[code]]) + 1, 1))
             # Record the final patient's data if information about them was extracted. This wil only have occurred if
             # the patient is meant to have their data output.
-            if currentPatient in patientData:
-                patientGender = patientData[currentPatient]["Gender"]
+            if currentPatient in validPatientData:
+                patientGender = validPatientData[currentPatient]["Gender"]
                 _write_entire_history(
                     binaryHistory, currentPatient, patientGender, fidBinHist, fidBinVisNC, fidBinVisC,
                     fidBinYearNC, fidBinYearC
