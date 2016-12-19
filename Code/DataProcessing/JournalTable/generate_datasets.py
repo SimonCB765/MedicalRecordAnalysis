@@ -89,6 +89,10 @@ def main(dirProcessedData, dirOutput, config):
     # Sort the codes and generate a mapping of codes to their index in the code list.
     validCodes = sorted(validCodes)
     codeIndexMap = {j: str(i) for i, j in enumerate(validCodes)}
+    fidCodeMap = open(os.path.join(dirOutput, "CodeIndexMap.tsv"), 'w')
+    for i in sorted(codeIndexMap):
+        fidCodeMap.write("{:s}\t{:s}\n".format(i, codeIndexMap[i]))
+    fidCodeMap.close()
 
     # Extract the information about whether codes have any values associated with them.
     codeAssociatedValues = {}
