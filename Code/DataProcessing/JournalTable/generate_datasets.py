@@ -1,15 +1,20 @@
-"""Generate datasets from SQL dump files."""
+"""Generate datasets from pre-processed SQL dump files."""
 
 # Python imports.
-from collections import defaultdict
 import logging
 import operator
 import os
 import re
 import sys
 
+# User imports.
+from . import file_generator
+from . import save_patient_data
+
 # Globals.
 LOGGER = logging.getLogger(__name__)
+
+# Define functions for compatibility.
 if sys.version_info[0] >= 3:
     iteritems = operator.methodcaller("items")
 else:
@@ -83,7 +88,7 @@ def main(dirProcessedData, dirOutput, config):
 
     # Sort the codes and generate a mapping of codes to their index in the code list.
     validCodes = sorted(validCodes)
-    codeIndexMap = {j: i for i, j in enumerate(validCodes)}
+    codeIndexMap = {j: str(i) for i, j in enumerate(validCodes)}
 
     # Extract the information about whether codes have any values associated with them.
     codeAssociatedValues = {}
@@ -94,224 +99,57 @@ def main(dirProcessedData, dirOutput, config):
             code = chunks[0]
             codeAssociatedValues[code] = {"Val1": bool(int(chunks[1])), "Val2": bool(int(chunks[2]))}
 
+    # Create the files to record the generated datasets in.
+    outputFiles = file_generator.open_files(dirOutput)
+
     # Extract the information about each patient's history.
     LOGGER.info("Now generating patient histories.")
-    with open(os.path.join(dirOutput, "CodeCount_History.tsv"), 'w') as fidCountHist, \
-            open(os.path.join(dirOutput, "CodeCount_Visits_NC.tsv"), 'w') as fidCountVisNC, \
-            open(os.path.join(dirOutput, "CodeCount_Visits_C.tsv"), 'w') as fidCountVisC, \
-            open(os.path.join(dirOutput, "CodeCount_Years_NC.tsv"), 'w') as fidCountYearNC, \
-            open(os.path.join(dirOutput, "CodeCount_Years_C.tsv"), 'w') as fidCountYearC, \
-            open(os.path.join(dirOutput, "BinaryIndicator_History.tsv"), 'w') as fidBinHist, \
-            open(os.path.join(dirOutput, "BinaryIndicator_Visits_NC.tsv"), 'w') as fidBinVisNC, \
-            open(os.path.join(dirOutput, "BinaryIndicator_Visits_C.tsv"), 'w') as fidBinVisC, \
-            open(os.path.join(dirOutput, "BinaryIndicator_Years_NC.tsv"), 'w') as fidBinYearNC, \
-            open(os.path.join(dirOutput, "BinaryIndicator_Years_C.tsv"), 'w') as fidBinYearC, \
-            open(os.path.join(dirOutput, "RawData_History.tsv"), 'w') as fidRawHist, \
-            open(os.path.join(dirOutput, "RawData_Visits_NC.tsv"), 'w') as fidRawVisNC, \
-            open(os.path.join(dirOutput, "RawData_Visits_C.tsv"), 'w') as fidRawVisC, \
-            open(os.path.join(dirOutput, "RawData_Years_NC.tsv"), 'w') as fidRawYearNC, \
-            open(os.path.join(dirOutput, "RawData_Years_C.tsv"), 'w') as fidRawYearC:
-        # Create the header for the binary indicator and code count datasets.
-        codeString = '\t'.join(validCodes)
-        header = "PatientID\tAge\tGender\t{:s}\n".format(codeString)
-        fidCountHist.write(header)
-        fidCountVisNC.write(header)
-        fidCountVisC.write(header)
-        fidCountYearNC.write(header)
-        fidCountYearC.write(header)
-        fidBinHist.write(header)
-        fidBinVisNC.write(header)
-        fidBinVisC.write(header)
-        fidBinYearNC.write(header)
-        fidBinYearC.write(header)
+    patientsSaved = 0
+    currentPatient = None  # The ID of the patient who's record is currently being built.
+    patientHistory = []  # The data for the current patient.
+    with open(fileJournalTable, 'r') as fidJournalTable:
+        _ = fidJournalTable.readline()  # Strip the header.
+        for line in fidJournalTable:
+            chunks = (line.strip()).split('\t')
+            patientID = chunks[0]
+            code = chunks[1]
+            year = int(chunks[3])
+            visitNumber = int(chunks[4])
+            value1 = float(chunks[5])
+            value2 = float(chunks[6])
 
-        # Create the header for the raw data datasets.
-        codeString = ""
-        for i in validCodes:
-            if codeAssociatedValues[i]["Val1"] and codeAssociatedValues[i]["Val2"]:
-                codeString += "\t{0:s}_Val1\t{0:s}_Val2".format(i)
-            elif codeAssociatedValues[i]["Val1"]:
-                codeString += "\t{:s}_Val1".format(i)
-            elif codeAssociatedValues[i]["Val2"]:
-                codeString += "\t{:s}_Val2".format(i)
-            else:
-                codeString += "\t{:s}".format(i)
-        codeString = codeString[1:]  # Strip off initial '\t' character.
-        header = "PatientID\tAge\tGender\t{:s}\n".format(codeString)
-        fidRawHist.write(header)
-        fidRawVisNC.write(header)
-        fidRawVisC.write(header)
-        fidRawYearNC.write(header)
-        fidRawYearC.write(header)
+            if (patientID not in validPatientData) or (code not in validCodes):
+                # Skip events that contain a patient or code that is not being used.
+                continue
 
-        # Start extracting the patient histories.
-        patientsSaved = 0
-        currentPatient = None  # The ID of the patient who's record is currently being built.
-        currentVisit = 0  # The current patient's current visit number.
-        currentYear = None  # The current patient's current year.
-        binaryHistory, countHistory, rawHistory = _init_histories(len(validCodes))
-        with open(fileJournalTable, 'r') as fidJournalTable:
-            _ = fidJournalTable.readline()  # Strip the header.
-            for line in fidJournalTable:
-                chunks = (line.strip()).split('\t')
-                patientID = chunks[0]
-                code = chunks[1]
-                year = int(chunks[3])
-                visitNumber = int(chunks[4])
-                value1 = float(chunks[5])
-                value2 = float(chunks[6])
+            if (patientID != currentPatient) and (currentPatient is not None):
+                # A new patient has been found and this is not the first line of the file, so record the old
+                # patient and reset the patient data for the new patient.
 
-                if (patientID not in validPatientData) or (code not in validCodes):
-                    # Skip events that contain a patient or code that is not being used.
-                    continue
+                # Output an update.
+                patientsSaved += 1
+                if patientsSaved % 1000 == 0:
+                    LOGGER.info("Saved {:d} patients ({:.2f}%).".format(
+                        patientsSaved, (patientsSaved / len(validPatientData)) * 100
+                    ))
 
-                if patientsSaved > 1000:
-                    break
-
-                if (patientID != currentPatient) and (currentPatient is not None):
-                    # A new patient has been found and this is not the first line of the file, so record the old
-                    # patient and reset the patient data for the new patient.
-
-                    # Output an update.
-                    patientGender = validPatientData[currentPatient]["Gender"]
-                    patientsSaved += 1
-                    if patientsSaved % 100 == 0:
-                        LOGGER.info("Saved {:d} patients ({:.2f}%).".format(
-                            patientsSaved, (patientsSaved / len(validPatientData)) * 100
-                        ))
-
-                    # Output the patient's information.
-                    _write_entire_history(
-                        binaryHistory, currentPatient, patientGender, fidBinHist, fidBinVisNC,
-                        fidBinVisC, fidBinYearNC, fidBinYearC
-                    )
-                    _write_entire_history(
-                        countHistory, currentPatient, patientGender, fidCountHist, fidCountVisNC,
-                        fidCountVisC, fidCountYearNC, fidCountYearC
-                    )
-                    binaryHistory, countHistory, rawHistory = _init_histories(len(validCodes))
-
-                # Update the information about the patient currently having their history collected.
-                currentPatient = patientID
-                currentVisit = visitNumber
-                currentYear = year
-                patientAge = currentYear - validPatientData[currentPatient]["YearOfBirth"]
-
-                # Update entire history vectors.
-                for i, j in iteritems(binaryHistory):
-                    if i == "Entire":
-                        j[0] = patientAge
-                        j[1][codeIndexMap[code]] = '1'
-                    elif i.startswith("Year"):
-                        j[currentYear][0] = patientAge
-                        j[currentYear][1][codeIndexMap[code]] = '1'
-                    else:
-                        j[currentVisit][0] = patientAge
-                        j[currentVisit][1][codeIndexMap[code]] = '1'
-
-                # Update count history vectors.
-                for i, j in iteritems(countHistory):
-                    if i == "Entire":
-                        j[0] = patientAge
-                        j[1][codeIndexMap[code]] = str(max(int(j[1][codeIndexMap[code]]) + 1, 1))
-                    elif i.startswith("Year"):
-                        j[currentYear][0] = patientAge
-                        j[currentYear][1][codeIndexMap[code]] = \
-                            str(max(int(j[currentYear][1][codeIndexMap[code]]) + 1, 1))
-                    else:
-                        j[currentVisit][0] = patientAge
-                        j[currentVisit][1][codeIndexMap[code]] = \
-                            str(max(int(j[currentVisit][1][codeIndexMap[code]]) + 1, 1))
-            # Record the final patient's data if information about them was extracted. This wil only have occurred if
-            # the patient is meant to have their data output.
-            if currentPatient in validPatientData:
+                # Output the patient's information.
                 patientGender = validPatientData[currentPatient]["Gender"]
-                _write_entire_history(
-                    binaryHistory, currentPatient, patientGender, fidBinHist, fidBinVisNC, fidBinVisC,
-                    fidBinYearNC, fidBinYearC
-                )
-                _write_entire_history(
-                    countHistory, currentPatient, patientGender, fidCountHist, fidCountVisNC, fidCountVisC,
-                    fidCountYearNC, fidCountYearC
-                )
+                save_patient_data.main(currentPatient, patientHistory, patientGender, outputFiles, len(validCodes))
+                patientHistory = []
+            currentPatient = patientID  # Update the current patient's ID to be this patient's.
 
+            # Add this patient-code association to the patient's history.
+            patientAge = year - validPatientData[patientID]["YearOfBirth"]
+            patientHistory.append(
+                {"Age": patientAge, "CodeIndex": codeIndexMap[code], "Val1": value1, "Val2": value2,
+                 "Visit": visitNumber, "Year": year}
+            )
 
-def _init_histories(numCodes):
-    """Generate blank history records.
+        # Record the final patient's data if they are meant to have data extracted.
+        if currentPatient in validPatientData:
+            patientGender = validPatientData[currentPatient]["Gender"]
+            save_patient_data.main(currentPatient, patientHistory, patientGender, outputFiles, len(validCodes))
 
-    :param numCodes:    The number of unique codes in the dataset.
-    :type numCodes:     int
-    :return:            The generated empty binary, count and raw history records.
-    :rtype:             dict, dict, dict
-
-    """
-
-    binaryHistory = {
-        "Entire": [None, ['-1'] * numCodes], "VisitNC": defaultdict(lambda: [None, ['-1'] * numCodes]),
-        "VisitC": defaultdict(lambda: [None, ['-1'] * numCodes]),
-        "YearNC": defaultdict(lambda: [None, ['-1'] * numCodes]),
-        "YearC": defaultdict(lambda: [None, ['-1'] * numCodes]),
-    }
-    countHistory = {
-        "Entire": [None, ['-1'] * numCodes], "VisitNC": defaultdict(lambda: [None, ['-1'] * numCodes]),
-        "VisitC": defaultdict(lambda: [None, ['-1'] * numCodes]),
-        "YearNC": defaultdict(lambda: [None, ['-1'] * numCodes]),
-        "YearC": defaultdict(lambda: [None, ['-1'] * numCodes]),
-    }
-    rawHistory = {}
-
-    return binaryHistory, countHistory, rawHistory
-
-
-def _write_entire_history(history, patientID, patientGender, fidEntire, fidVisitNC, fidVisitC, fidYearNC,
-                          fidYearC):
-    """Write out all history information for a patient.
-
-    :param history:         The history to output the information for.
-    :type history:          dict
-    :param patientID:       The ID of the patient.
-    :type patientID:        str
-    :param patientGender:   The gender of the patient (M or F).
-    :type patientGender:    str
-    :param fidEntire:       The file handle to the file to write the entire history information to.
-    :type fidEntire:        _io.TextIOWrapper
-    :param fidVisitNC:      The file handle to the file to write the non-cumulative visit history information to.
-    :type fidVisitNC:       _io.TextIOWrapper
-    :param fidVisitC:       The file handle to the file to write the cumulative visit history information to.
-    :type fidVisitC:        _io.TextIOWrapper
-    :param fidYearNC:       The file handle to the file to write the non-cumulative year history information to.
-    :type fidYearNC:        _io.TextIOWrapper
-    :param fidYearC:        The file handle to the file to write the cumulative year history information to.
-    :type fidYearC:         _io.TextIOWrapper
-
-    """
-
-    fidEntire.write(
-        "{:s}\t{:d}\t{:s}\t{:s}\n".format(
-            patientID, history["Entire"][0], patientGender, '\t'.join(history["Entire"][1])
-        )
-    )
-    visitNCOutput = ""
-    for i in sorted(history["VisitNC"]):
-        visitNCOutput += "{:s}\t{:d}\t{:s}\t{:s}\n".format(
-            patientID, history["VisitNC"][i][0], patientGender, '\t'.join(history["VisitNC"][i][1])
-        )
-    fidVisitNC.write(visitNCOutput)
-    visitCOutput = ""
-    for i in sorted(history["VisitC"]):
-        visitCOutput += "{:s}\t{:d}\t{:s}\t{:s}\n".format(
-            patientID, history["VisitC"][i][0], patientGender, '\t'.join(history["VisitC"][i][1])
-        )
-    fidVisitC.write(visitCOutput)
-    yearNCOutput = ""
-    for i in sorted(history["YearNC"]):
-        yearNCOutput += "{:s}\t{:d}\t{:s}\t{:s}\n".format(
-            patientID, history["YearNC"][i][0], patientGender, '\t'.join(history["YearNC"][i][1])
-        )
-    fidYearNC.write(yearNCOutput)
-    yearCOutput = ""
-    for i in sorted(history["YearC"]):
-        yearCOutput += "{:s}\t{:d}\t{:s}\t{:s}\n".format(
-            patientID, history["YearC"][i][0], patientGender, '\t'.join(history["YearC"][i][1])
-        )
-    fidYearC.write(yearCOutput)
+        # Close the open files.
+        file_generator.close_files(outputFiles)
