@@ -40,21 +40,6 @@ def main(dirSQLFiles, dirProcessedData):
 
     LOGGER.info("Starting journal table pre-processing.")
 
-    # Extract the patient demographics of interest.
-    filePatientDemographics = os.path.join(dirProcessedData, "PatientDemographics.tsv")
-    with open(filePatientTable, 'r') as fidPatientTable, open(filePatientDemographics, 'w') as fidDemographics:
-        fidDemographics.write("PatientID\tDOB\tGender\n")
-        for line in fidPatientTable:
-            if line.startswith("insert"):
-                # Found a line containing patient details.
-                line = line[84:]  # Strip of the SQL insert syntax at the beginning.
-                line = line[:-3]  # Strip off the ");\n" at the end.
-                chunks = line.split(',')
-                patientID = chunks[0]
-                DOB = chunks[1]
-                patientGender = 'M' if chunks[3] == '1' else 'F'  # A '1' indicates a male and a '0' a female.
-                fidDemographics.write("{:s}\t{:s}\t{:s}\n".format(patientID, DOB, patientGender))
-
     # Convert the journal table into a standard format, ignoring any entries that are missing either a patient ID or
     # a code.
     fileProcessedJournal = os.path.join(dirProcessedData, "JournalTable.tsv")
@@ -65,6 +50,8 @@ def main(dirSQLFiles, dirProcessedData):
     codeAssociatedValues = defaultdict(lambda: {"Val1": False, "Val2": False})  # Value types associated with codes.
     currentPatient = None  # The ID of the patient who's record is currently being built.
     patientHistory = defaultdict(list)  # The data for the current patient.
+    codesPatientHas = defaultdict(set)  # The codes that each patient is associated with.
+    patientsWithCode = defaultdict(set)  # The patients that each code is associated with.
     with open(fileJournalTable, 'r') as fidJournalTable, open(fileProcessedJournal, 'w') as fidProcessed:
         fidProcessed.write("PatientID\tCode\tDate\tYear\tVisitNumber\tVal1\tVal2\tFreeText\n")
         for line in fidJournalTable:
@@ -80,7 +67,9 @@ def main(dirSQLFiles, dirProcessedData):
                     # The entry is valid as it has both a patient ID and code recorded for it.
                     numValidEvents += 1
                     uniqueCodes.add(code)
+                    codesPatientHas[patientID].add(code)
                     uniquePatients.add(patientID)
+                    patientsWithCode[code].add(patientID)
                     codeAssociatedValues[code]["Val1"] |= float(entries[3]) != 0
                     codeAssociatedValues[code]["Val2"] |= float(entries[4]) != 0
 
@@ -110,14 +99,36 @@ def main(dirSQLFiles, dirProcessedData):
     LOGGER.info("{:d} unique patients found in the dataset.".format(len(uniquePatients)))
     LOGGER.info("{:d} unique codes found in the dataset.".format(len(uniqueCodes)))
 
+    # Extract the patient demographics of interest.
+    filePatientDemographics = os.path.join(dirProcessedData, "PatientDemographics.tsv")
+    with open(filePatientTable, 'r') as fidPatientTable, open(filePatientDemographics, 'w') as fidDemographics:
+        fidDemographics.write("PatientID\tDOB\tGender\tCodesPatientHas\n")
+        for line in fidPatientTable:
+            if line.startswith("insert"):
+                # Found a line containing patient details.
+                line = line[84:]  # Strip of the SQL insert syntax at the beginning.
+                line = line[:-3]  # Strip off the ");\n" at the end.
+                chunks = line.split(',')
+                patientID = chunks[0]
+                DOB = chunks[1]
+                patientGender = 'M' if chunks[3] == '1' else 'F'  # A '1' indicates a male and a '0' a female.
+                fidDemographics.write(
+                    "{:s}\t{:s}\t{:s}\t{:s}\n".format(
+                        patientID, DOB, patientGender, ','.join(sorted(codesPatientHas[patientID]))
+                    )
+                )
+
     # Write out the codes in the dataset.
     uniqueCodes = sorted(uniqueCodes)
     fileCodes = os.path.join(dirProcessedData, "Codes.txt")
     with open(fileCodes, 'w') as fidCodes:
-        fidCodes.write("Code\tHasVal1Value\tHasVal2Value\n")
+        fidCodes.write("Code\tHasVal1Value\tHasVal2Value\tPatientsWithCode\n")
         for i in uniqueCodes:
             fidCodes.write(
-                "{:s}\t{:d}\t{:d}\n".format(i, codeAssociatedValues[i]["Val1"], codeAssociatedValues[i]["Val2"])
+                "{:s}\t{:d}\t{:d}\t{:s}\n".format(
+                    i, codeAssociatedValues[i]["Val1"], codeAssociatedValues[i]["Val2"],
+                    ','.join(sorted(patientsWithCode[i]))
+                )
             )
 
     # Write out statistics of the dataset.
