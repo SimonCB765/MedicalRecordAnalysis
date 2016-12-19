@@ -130,7 +130,7 @@ def main(dirSQLFiles, dirProcessedData):
     uniqueCodes = sorted(uniqueCodes)
     fileCodes = os.path.join(dirProcessedData, "Codes.txt")
     with open(fileCodes, 'w') as fidCodes:
-        fidCodes.write("Code\tHasVal1Value\tHasVal2Value\tPatientsWithCode\n")
+        fidCodes.write("Code\tHasVal1Value\tHasVal2Value\n")
         for i in uniqueCodes:
             fidCodes.write(
                 "{:s}\t{:d}\t{:d}\n".format(i, codeAssociatedValues[i]["Val1"], codeAssociatedValues[i]["Val2"])
