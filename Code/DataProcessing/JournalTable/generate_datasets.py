@@ -2,7 +2,6 @@
 
 # Python imports.
 import logging
-import operator
 import os
 import re
 import sys
@@ -13,12 +12,6 @@ from . import save_patient_data
 
 # Globals.
 LOGGER = logging.getLogger(__name__)
-
-# Define functions for compatibility.
-if sys.version_info[0] >= 3:
-    iteritems = operator.methodcaller("items")
-else:
-    iteritems = operator.methodcaller("iteritems")
 
 
 def main(dirProcessedData, dirOutput, config):
