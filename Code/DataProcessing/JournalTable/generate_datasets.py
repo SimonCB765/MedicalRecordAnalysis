@@ -82,13 +82,13 @@ def main(dirProcessedData, dirOutput, config):
     # Create the mapping needed to map variables to their index in the bag-of-words representation.
     bowVarMapping = {}
     fidBOWVarMap = open(os.path.join(dirOutput, "BOWIndexMap.tsv"), 'w')
-    for i, j in enumerate(validCodes):
-        bowVarMapping[j] = i
-        fidBOWVarMap.write("{:s}\t{:d}\n".format(j, i))
-    bowVarMapping["_Age"] = len(validCodes)
-    fidBOWVarMap.write("_Age\t{:d}\n".format(len(validCodes)))
-    bowVarMapping["_Gender"] = len(validCodes) + 1
-    fidBOWVarMap.write("_Gender\t{:d}\n".format(len(validCodes) + 1))
+    bowVarMapping["_Age"] = 0
+    fidBOWVarMap.write("_Age\t{:d}\n".format(0))
+    bowVarMapping["_Gender"] = 1
+    fidBOWVarMap.write("_Gender\t{:d}\n".format(1))
+    for i, j in enumerate(sorted(validCodes)):
+        bowVarMapping[j] = i + 2
+        fidBOWVarMap.write("{:s}\t{:d}\n".format(j, i + 2))
     fidBOWVarMap.close()
 
     # Create the mapping needed to map variables to their index in the raw data values representation.
