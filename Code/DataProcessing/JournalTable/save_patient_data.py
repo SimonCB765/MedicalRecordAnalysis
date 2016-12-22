@@ -4,7 +4,7 @@
 from collections import defaultdict
 
 
-def main(patientID, patientData, patientGender, outputFiles, numCodes):
+def main(patientID, patientData, patientGender, outputFiles, bowVarMapping, rawVarMapping):
     """Save the history of a given patient in all the desired formats.
 
     :param patientID:       The ID of the patient.
@@ -17,8 +17,10 @@ def main(patientID, patientData, patientGender, outputFiles, numCodes):
     :type patientGender:    str
     :param outputFiles:     The locations of the cleaned dataset files.
     :type outputFiles:      dict
-    :param numCodes:        The number of codes in the dataset.
-    :type numCodes:         int
+    :param bowVarMapping:   A mapping from variables in the bag of words representation to their indices.
+    :type bowVarMapping:    dict
+    :param rawVarMapping:   A mapping from variables in the raw value representation to their indices.
+    :type rawVarMapping:    dict
 
     """
 
@@ -59,46 +61,50 @@ def main(patientID, patientData, patientGender, outputFiles, numCodes):
         ages["Years"][year] = age
     finalAge = patientData[-1]["Age"]
 
-    # Write out the patient's history information.
-    patientInfo = "{:s}\t{:d}\t{:s}\t{:d}\t{:s}\n"
+    # Write out the patient's history information for the non-raw value representations.
+    patientInfo = "{:s}\t{:d}:{:d},{:d}:{:s},{:s}\n"
     fidBinHist.write(
         patientInfo.format(
-            patientID, finalAge, patientGender, numCodes, ','.join(["{:s}:1".format(i) for i in binHistory])
+            patientID, bowVarMapping["_Age"], finalAge, bowVarMapping["_Gender"], patientGender,
+            ','.join(["{:d}:1".format(bowVarMapping[i]) for i in binHistory])
         )
     )
     binVisitsOutput = ""
     for i in sorted(binVisits):
         binVisitsOutput += patientInfo.format(
-            patientID, ages["Visits"][i], patientGender, numCodes,
-            ','.join(["{:s}:1".format(j) for j in binVisits[i]])
+            patientID, bowVarMapping["_Age"], ages["Visits"][i], bowVarMapping["_Gender"], patientGender,
+            ','.join(["{:d}:1".format(bowVarMapping[j]) for j in binVisits[i]])
         )
     fidBinVis.write(binVisitsOutput)
     binYearsOutput = ""
     for i in sorted(binYears):
         binYearsOutput += patientInfo.format(
-            patientID, ages["Years"][i], patientGender, numCodes,
-            ','.join(["{:s}:1".format(j) for j in binYears[i]])
+            patientID, bowVarMapping["_Age"], ages["Years"][i], bowVarMapping["_Gender"], patientGender,
+            ','.join(["{:d}:1".format(bowVarMapping[j]) for j in binYears[i]])
         )
     fidBinYear.write(binYearsOutput)
     fidCountHist.write(
         patientInfo.format(
-            patientID, finalAge, patientGender, numCodes, ','.join(["{:s}:1".format(i) for i in countsHistory])
+            patientID, bowVarMapping["_Age"], finalAge, bowVarMapping["_Gender"], patientGender,
+            ','.join(["{:d}:{:d}".format(bowVarMapping[i], countsHistory[i]) for i in countsHistory])
         )
     )
     countVisitsOutput = ""
     for i in sorted(countsVisits):
         countVisitsOutput += patientInfo.format(
-            patientID, ages["Visits"][i], patientGender, numCodes,
-            ','.join(["{:s}:1".format(j) for j in countsVisits[i]])
+            patientID, bowVarMapping["_Age"], ages["Visits"][i], bowVarMapping["_Gender"], patientGender,
+            ','.join(["{:d}:{:d}".format(bowVarMapping[j], countsVisits[i][j]) for j in countsVisits[i]])
         )
     fidCountVis.write(countVisitsOutput)
     countYearsOutput = ""
     for i in sorted(countsYears):
         countYearsOutput += patientInfo.format(
-            patientID, ages["Years"][i], patientGender, numCodes,
-            ','.join(["{:s}:1".format(j) for j in countsYears[i]])
+            patientID, bowVarMapping["_Age"], ages["Years"][i], bowVarMapping["_Gender"], patientGender,
+            ','.join(["{:d}:{:d}".format(bowVarMapping[j], countsYears[i][j]) for j in countsYears[i]])
         )
     fidCountYear.write(countYearsOutput)
+
+    # Write out the patient's history information for the raw value representations.
     #fidRawHist.write()
     #fidRawVis.write()
     #fidRawYear.write()

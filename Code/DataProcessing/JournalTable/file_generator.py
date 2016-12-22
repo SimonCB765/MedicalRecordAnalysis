@@ -30,7 +30,7 @@ def open_files(dirOutput):
     """
 
     # Create the file names.
-    outputFids = {
+    outputFileIDs = {
         "BinaryIndicator": {
             "History": open(os.path.join(dirOutput, "BinaryIndicator_History.tsv"), 'w'),
             "Visits": open(os.path.join(dirOutput, "BinaryIndicator_Visits.tsv"), 'w'),
@@ -49,9 +49,9 @@ def open_files(dirOutput):
     }
 
     # Create the file handles.
-    header = "PatientID\tAge\tGender\tNumberOfCodes\tCodeRecords\n"
-    for i in outputFids:
-        for j in outputFids[i]:
-            outputFids[i][j].write(header)
+    header = "PatientID\tVariables\n"
+    for i in outputFileIDs:
+        for j in outputFileIDs[i]:
+            outputFileIDs[i][j].write(header)
 
-    return outputFids
+    return outputFileIDs
