@@ -58,13 +58,13 @@ def main(dirProcessedData, dirOutput, config):
     LOGGER.info("Starting journal table dataset generation.")
 
     # Create patient and code ignore/keep regular expressions.
-    patientsToIgnore = config.get_param(["DataProcessing", "PatientsToIgnore"])[1]
+    patientsToIgnore = ["{:s}$".format(i) for i in config.get_param(["DataProcessing", "PatientsToIgnore"])[1]]
     patientsToIgnore = re.compile('|'.join(patientsToIgnore)) if patientsToIgnore else re.compile("a^")
-    patientsToKeep = config.get_param(["DataProcessing", "PatientsToKeep"])[1]
+    patientsToKeep = ["{:s}$".format(i) for i in config.get_param(["DataProcessing", "PatientsToKeep"])[1]]
     patientsToKeep = re.compile('|'.join(patientsToKeep)) if patientsToKeep else re.compile("")
-    codesToIgnore = config.get_param(["DataProcessing", "CodesToIgnore"])[1]
+    codesToIgnore = ["{:s}$".format(i) for i in config.get_param(["DataProcessing", "CodesToIgnore"])[1]]
     codesToIgnore = re.compile('|'.join(codesToIgnore)) if codesToIgnore else re.compile("a^")
-    codesToKeep = config.get_param(["DataProcessing", "CodesToKeep"])[1]
+    codesToKeep = ["{:s}$".format(i) for i in config.get_param(["DataProcessing", "CodesToKeep"])[1]]
     codesToKeep = re.compile('|'.join(codesToKeep)) if codesToKeep else re.compile("")
 
     # Extract the patient demographics and determine which patients should be used.
