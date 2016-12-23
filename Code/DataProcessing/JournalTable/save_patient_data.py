@@ -4,7 +4,7 @@
 from collections import defaultdict
 
 
-def main(patientID, patientData, patientGender, outputFiles, bowVarMapping, rawVarMapping):
+def main(patientID, patientData, patientGender, outputFiles):
     """Save the history of a given patient in all the desired formats.
 
     :param patientID:       The ID of the patient.
@@ -17,10 +17,6 @@ def main(patientID, patientData, patientGender, outputFiles, bowVarMapping, rawV
     :type patientGender:    str
     :param outputFiles:     The locations of the cleaned dataset files.
     :type outputFiles:      dict
-    :param bowVarMapping:   A mapping from variables in the bag of words representation to their indices.
-    :type bowVarMapping:    dict
-    :param rawVarMapping:   A mapping from variables in the raw value representation to their indices.
-    :type rawVarMapping:    dict
 
     """
 
@@ -46,61 +42,60 @@ def main(patientID, patientData, patientGender, outputFiles, bowVarMapping, rawV
     for i in patientData:
         # Extract information about the event.
         age = i["Age"]
-        codeIndex = i["CodeIndex"]
+        code = i["Code"]
         visit = i["Visit"]
         year = i["Year"]
 
         # Update event records.
-        binHistory.add(codeIndex)
-        binVisits[visit].add(codeIndex)
-        binYears[year].add(codeIndex)
+        binHistory.add(code)
+        binVisits[visit].add(code)
+        binYears[year].add(code)
         ages["Visits"][visit] = age
-        countsHistory[codeIndex] += 1
-        countsVisits[visit][codeIndex] += 1
-        countsYears[year][codeIndex] += 1
+        countsHistory[code] += 1
+        countsVisits[visit][code] += 1
+        countsYears[year][code] += 1
         ages["Years"][year] = age
     finalAge = patientData[-1]["Age"]
 
     # Write out the patient's history information for the non-raw value representations.
-    patientInfo = "{:s}\t{:d}:{:d},{:d}:{:s},{:s}\n"
+    patientInfo = "{:s}\t{:s}:{:d}|{:s}:{:s}|{:s}\n"
     fidBinHist.write(
         patientInfo.format(
-            patientID, bowVarMapping["_Age"], finalAge, bowVarMapping["_Gender"], patientGender,
-            ','.join(["{:d}:1".format(bowVarMapping[i]) for i in binHistory])
+            patientID, "_Age", finalAge, "_Gender", patientGender, '|'.join(["{:s}:1".format(i) for i in binHistory])
         )
     )
     binVisitsOutput = ""
     for i in sorted(binVisits):
         binVisitsOutput += patientInfo.format(
-            patientID, bowVarMapping["_Age"], ages["Visits"][i], bowVarMapping["_Gender"], patientGender,
-            ','.join(["{:d}:1".format(bowVarMapping[j]) for j in binVisits[i]])
+            patientID, "_Age", ages["Visits"][i], "_Gender", patientGender,
+            '|'.join(["{:s}:1".format(j) for j in binVisits[i]])
         )
     fidBinVis.write(binVisitsOutput)
     binYearsOutput = ""
     for i in sorted(binYears):
         binYearsOutput += patientInfo.format(
-            patientID, bowVarMapping["_Age"], ages["Years"][i], bowVarMapping["_Gender"], patientGender,
-            ','.join(["{:d}:1".format(bowVarMapping[j]) for j in binYears[i]])
+            patientID, "_Age", ages["Years"][i], "_Gender", patientGender,
+            '|'.join(["{:s}:1".format(j) for j in binYears[i]])
         )
     fidBinYear.write(binYearsOutput)
     fidCountHist.write(
         patientInfo.format(
-            patientID, bowVarMapping["_Age"], finalAge, bowVarMapping["_Gender"], patientGender,
-            ','.join(["{:d}:{:d}".format(bowVarMapping[i], countsHistory[i]) for i in countsHistory])
+            patientID, "_Age", finalAge, "_Gender", patientGender,
+            '|'.join(["{:s}:{:d}".format(i, countsHistory[i]) for i in countsHistory])
         )
     )
     countVisitsOutput = ""
     for i in sorted(countsVisits):
         countVisitsOutput += patientInfo.format(
-            patientID, bowVarMapping["_Age"], ages["Visits"][i], bowVarMapping["_Gender"], patientGender,
-            ','.join(["{:d}:{:d}".format(bowVarMapping[j], countsVisits[i][j]) for j in countsVisits[i]])
+            patientID, "_Age", ages["Visits"][i], "_Gender", patientGender,
+            '|'.join(["{:s}:{:d}".format(j, countsVisits[i][j]) for j in countsVisits[i]])
         )
     fidCountVis.write(countVisitsOutput)
     countYearsOutput = ""
     for i in sorted(countsYears):
         countYearsOutput += patientInfo.format(
-            patientID, bowVarMapping["_Age"], ages["Years"][i], bowVarMapping["_Gender"], patientGender,
-            ','.join(["{:d}:{:d}".format(bowVarMapping[j], countsYears[i][j]) for j in countsYears[i]])
+            patientID, "_Age", ages["Years"][i], "_Gender", patientGender,
+            '|'.join(["{:s}:{:d}".format(j, countsYears[i][j]) for j in countsYears[i]])
         )
     fidCountYear.write(countYearsOutput)
 

@@ -79,23 +79,6 @@ def main(dirProcessedData, dirOutput, config):
                 validCodes.update(validCodesPatientHas)
                 validPatientData[patientID] = {"YearOfBirth": yearOfBirth, "Gender": patientGender}
 
-    # Create the mapping needed to map variables to their index in the bag-of-words representation.
-    bowVarMapping = {}
-    fidBOWVarMap = open(os.path.join(dirOutput, "BOWIndexMap.tsv"), 'w')
-    bowVarMapping["_Age"] = 0
-    fidBOWVarMap.write("_Age\t{:d}\n".format(0))
-    bowVarMapping["_Gender"] = 1
-    fidBOWVarMap.write("_Gender\t{:d}\n".format(1))
-    for i, j in enumerate(sorted(validCodes)):
-        bowVarMapping[j] = i + 2
-        fidBOWVarMap.write("{:s}\t{:d}\n".format(j, i + 2))
-    fidBOWVarMap.close()
-
-    # Create the mapping needed to map variables to their index in the raw data values representation.
-    rawVarMapping = {}
-    fidRawVarMap = open(os.path.join(dirOutput, "RawIndexMap.tsv"), 'w')
-    fidRawVarMap.close()
-
     # Extract the information about whether codes have any values associated with them.
     codeAssociatedValues = {}
     with open(fileCodes, 'r') as fidCodes:
@@ -141,25 +124,20 @@ def main(dirProcessedData, dirOutput, config):
 
                 # Output the patient's information.
                 patientGender = validPatientData[currentPatient]["Gender"]
-                save_patient_data.main(
-                    currentPatient, patientHistory, patientGender, outputFiles, bowVarMapping, rawVarMapping
-                )
+                save_patient_data.main(currentPatient, patientHistory, patientGender, outputFiles)
                 patientHistory = []
             currentPatient = patientID  # Update the current patient's ID to be this patient's.
 
             # Add this patient-code association to the patient's history.
             patientAge = year - validPatientData[patientID]["YearOfBirth"]
             patientHistory.append(
-                {"Age": patientAge, "CodeIndex": code, "Val1": value1, "Val2": value2,
-                 "Visit": visitNumber, "Year": year}
+                {"Age": patientAge, "Code": code, "Val1": value1, "Val2": value2, "Visit": visitNumber, "Year": year}
             )
 
         # Record the final patient's data if they are meant to have data extracted.
         if currentPatient in validPatientData:
             patientGender = validPatientData[currentPatient]["Gender"]
-            save_patient_data.main(
-                currentPatient, patientHistory, patientGender, outputFiles, bowVarMapping, rawVarMapping
-            )
+            save_patient_data.main(currentPatient, patientHistory, patientGender, outputFiles)
 
         # Close the open files.
         file_generator.close_files(outputFiles)
