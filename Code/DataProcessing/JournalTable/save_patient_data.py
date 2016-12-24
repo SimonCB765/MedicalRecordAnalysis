@@ -58,44 +58,45 @@ def main(patientID, patientData, patientGender, outputFiles):
     finalAge = patientData[-1]["Age"]
 
     # Write out the patient's history information for the non-raw value representations.
-    patientInfo = "{:s}\t{:s}:{:d}|{:s}:{:s}|{:s}\n"
+    patientInfo = "{:s}:{:s}\t{:s}:{:d}\t{:s}:{:s}\t{:s}\n"
     fidBinHist.write(
         patientInfo.format(
-            patientID, "_Age", finalAge, "_Gender", patientGender, '|'.join(["{:s}:1".format(i) for i in binHistory])
+            "_ID", patientID, "_Age", finalAge, "_Gender", patientGender,
+            '\t'.join(["{:s}:1".format(i) for i in binHistory])
         )
     )
     binVisitsOutput = ""
     for i in sorted(binVisits):
         binVisitsOutput += patientInfo.format(
-            patientID, "_Age", ages["Visits"][i], "_Gender", patientGender,
-            '|'.join(["{:s}:1".format(j) for j in binVisits[i]])
+            "_ID", patientID, "_Age", ages["Visits"][i], "_Gender", patientGender,
+            '\t'.join(["{:s}:1".format(j) for j in binVisits[i]])
         )
     fidBinVis.write(binVisitsOutput)
     binYearsOutput = ""
     for i in sorted(binYears):
         binYearsOutput += patientInfo.format(
-            patientID, "_Age", ages["Years"][i], "_Gender", patientGender,
-            '|'.join(["{:s}:1".format(j) for j in binYears[i]])
+            "_ID", patientID, "_Age", ages["Years"][i], "_Gender", patientGender,
+            '\t'.join(["{:s}:1".format(j) for j in binYears[i]])
         )
     fidBinYear.write(binYearsOutput)
     fidCountHist.write(
         patientInfo.format(
-            patientID, "_Age", finalAge, "_Gender", patientGender,
-            '|'.join(["{:s}:{:d}".format(i, countsHistory[i]) for i in countsHistory])
+            "_ID", patientID, "_Age", finalAge, "_Gender", patientGender,
+            '\t'.join(["{:s}:{:d}".format(i, countsHistory[i]) for i in countsHistory])
         )
     )
     countVisitsOutput = ""
     for i in sorted(countsVisits):
         countVisitsOutput += patientInfo.format(
-            patientID, "_Age", ages["Visits"][i], "_Gender", patientGender,
-            '|'.join(["{:s}:{:d}".format(j, countsVisits[i][j]) for j in countsVisits[i]])
+            "_ID", patientID, "_Age", ages["Visits"][i], "_Gender", patientGender,
+            '\t'.join(["{:s}:{:d}".format(j, countsVisits[i][j]) for j in countsVisits[i]])
         )
     fidCountVis.write(countVisitsOutput)
     countYearsOutput = ""
     for i in sorted(countsYears):
         countYearsOutput += patientInfo.format(
-            patientID, "_Age", ages["Years"][i], "_Gender", patientGender,
-            '|'.join(["{:s}:{:d}".format(j, countsYears[i][j]) for j in countsYears[i]])
+            "_ID", patientID, "_Age", ages["Years"][i], "_Gender", patientGender,
+            '\t'.join(["{:s}:{:d}".format(j, countsYears[i][j]) for j in countsYears[i]])
         )
     fidCountYear.write(countYearsOutput)
 

@@ -48,10 +48,4 @@ def open_files(dirOutput):
         }
     }
 
-    # Create the file handles.
-    header = "PatientID\tVariables\n"
-    for i in outputFileIDs:
-        for j in outputFileIDs[i]:
-            outputFileIDs[i][j].write(header)
-
     return outputFileIDs
