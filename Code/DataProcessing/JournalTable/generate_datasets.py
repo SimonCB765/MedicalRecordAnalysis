@@ -89,7 +89,7 @@ def main(dirProcessedData, dirOutput, config):
             codeAssociatedValues[code] = {"Val1": bool(int(chunks[1])), "Val2": bool(int(chunks[2]))}
 
     # Create the files to record the generated datasets in.
-    outputFiles = file_generator.open_files(dirOutput)
+    outputFiles = file_generator.open_files(dirOutput, validCodes | {"_ID", "_Age", "_Gender"})
 
     # Extract the information about each patient's history.
     LOGGER.info("Now generating patient histories.")

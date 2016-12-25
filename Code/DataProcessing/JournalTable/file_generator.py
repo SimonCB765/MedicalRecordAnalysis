@@ -17,15 +17,17 @@ def close_files(fileDict):
             fileDict[i][j].close()
 
 
-def open_files(dirOutput):
+def open_files(dirOutput, variablesUsed):
     """Generate the names of the cleaned dataset files to be generated.
 
     The intended contents of the files can be found in the README.
 
-    :param dirOutput:   Location of the directory containing the dataset files.
-    :type dirOutput:    str
-    :return:            The cleaned dataset files open for writing.
-    :rtype:             dict
+    :param dirOutput:       Location of the directory containing the dataset files.
+    :type dirOutput:        str
+    :param variablesUsed:   The codes used as variables in the dataset (plus the ID, age and gender).
+    :type variablesUsed:    set
+    :return:                The cleaned dataset files open for writing.
+    :rtype:                 dict
 
     """
 
@@ -47,5 +49,11 @@ def open_files(dirOutput):
             "Years": open(os.path.join(dirOutput, "RawData_Years.tsv"), 'w')
         }
     }
+
+    # Write the header.
+    header = "{:s}\n".format("\t".join(variablesUsed))
+    for i in outputFileIDs:
+        for j in outputFileIDs[i]:
+            outputFileIDs[i][j].write(header)
 
     return outputFileIDs
