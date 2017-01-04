@@ -26,6 +26,18 @@
           "description": "The converter to use to create the flat file dataset.",
           "type": "string"
         },
+        "MinVisits": {
+          "default": 0,
+          "description": "The minimum number of unique dates a patient must have records for in order for their visit data to be saved.",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "MinYears": {
+          "default": 0,
+          "description": "The minimum number of years a patient must have records recorded in in order for their year data to be saved.",
+          "minimum": 0,
+          "type": "integer"
+        },
         "PatientsToIgnore": {"$ref": "#/definitions/StringArray"},
         "PatientsToKeep": {"$ref": "#/definitions/StringArray"},
         "Separator": {

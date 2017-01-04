@@ -4,7 +4,7 @@
 from collections import defaultdict
 
 
-def main(patientID, patientData, patientGender, outputFiles):
+def main(patientID, patientData, patientGender, outputFiles, minVisits=0, minYears=0):
     """Save the history of a given patient in all the desired formats.
 
     :param patientID:       The ID of the patient.
@@ -17,6 +17,12 @@ def main(patientID, patientData, patientGender, outputFiles):
     :type patientGender:    str
     :param outputFiles:     The locations of the cleaned dataset files.
     :type outputFiles:      dict
+    :param minVisits:       The minimum number of unique dates for which a patient must have data recorded before their
+                                visit information is saved.
+    :type minVisits:        int
+    :param minYears:        The minimum number of unique years for which a patient must have data recorded before their
+                                year information is saved.
+    :type minYears:         int
 
     """
 
@@ -65,40 +71,44 @@ def main(patientID, patientData, patientGender, outputFiles):
             '\t'.join(["{:s}:1".format(i) for i in binHistory])
         )
     )
-    binVisitsOutput = ""
-    for i in sorted(binVisits):
-        binVisitsOutput += patientInfo.format(
-            "_ID", patientID, "_Age", ages["Visits"][i], "_Gender", patientGender,
-            '\t'.join(["{:s}:1".format(j) for j in binVisits[i]])
-        )
-    fidBinVis.write(binVisitsOutput)
-    binYearsOutput = ""
-    for i in sorted(binYears):
-        binYearsOutput += patientInfo.format(
-            "_ID", patientID, "_Age", ages["Years"][i], "_Gender", patientGender,
-            '\t'.join(["{:s}:1".format(j) for j in binYears[i]])
-        )
-    fidBinYear.write(binYearsOutput)
+    if len(binVisits) >= minVisits:
+        binVisitsOutput = ""
+        for i in sorted(binVisits):
+            binVisitsOutput += patientInfo.format(
+                "_ID", patientID, "_Age", ages["Visits"][i], "_Gender", patientGender,
+                '\t'.join(["{:s}:1".format(j) for j in binVisits[i]])
+            )
+        fidBinVis.write(binVisitsOutput)
+    if len(binYears) >= minYears:
+        binYearsOutput = ""
+        for i in sorted(binYears):
+            binYearsOutput += patientInfo.format(
+                "_ID", patientID, "_Age", ages["Years"][i], "_Gender", patientGender,
+                '\t'.join(["{:s}:1".format(j) for j in binYears[i]])
+            )
+        fidBinYear.write(binYearsOutput)
     fidCountHist.write(
         patientInfo.format(
             "_ID", patientID, "_Age", finalAge, "_Gender", patientGender,
             '\t'.join(["{:s}:{:d}".format(i, countsHistory[i]) for i in countsHistory])
         )
     )
-    countVisitsOutput = ""
-    for i in sorted(countsVisits):
-        countVisitsOutput += patientInfo.format(
-            "_ID", patientID, "_Age", ages["Visits"][i], "_Gender", patientGender,
-            '\t'.join(["{:s}:{:d}".format(j, countsVisits[i][j]) for j in countsVisits[i]])
-        )
-    fidCountVis.write(countVisitsOutput)
-    countYearsOutput = ""
-    for i in sorted(countsYears):
-        countYearsOutput += patientInfo.format(
-            "_ID", patientID, "_Age", ages["Years"][i], "_Gender", patientGender,
-            '\t'.join(["{:s}:{:d}".format(j, countsYears[i][j]) for j in countsYears[i]])
-        )
-    fidCountYear.write(countYearsOutput)
+    if len(countsVisits) >= minVisits:
+        countVisitsOutput = ""
+        for i in sorted(countsVisits):
+            countVisitsOutput += patientInfo.format(
+                "_ID", patientID, "_Age", ages["Visits"][i], "_Gender", patientGender,
+                '\t'.join(["{:s}:{:d}".format(j, countsVisits[i][j]) for j in countsVisits[i]])
+            )
+        fidCountVis.write(countVisitsOutput)
+    if len(countsYears) >= minYears:
+        countYearsOutput = ""
+        for i in sorted(countsYears):
+            countYearsOutput += patientInfo.format(
+                "_ID", patientID, "_Age", ages["Years"][i], "_Gender", patientGender,
+                '\t'.join(["{:s}:{:d}".format(j, countsYears[i][j]) for j in countsYears[i]])
+            )
+        fidCountYear.write(countYearsOutput)
 
     # Write out the patient's history information for the raw value representations.
     #fidRawHist.write()

@@ -88,6 +88,10 @@ def main(dirProcessedData, dirOutput, config):
             code = chunks[0]
             codeAssociatedValues[code] = {"Val1": bool(int(chunks[1])), "Val2": bool(int(chunks[2]))}
 
+    # Determine minimum number of visits and years needed for saving.
+    minVisits = config.get_param(["DataProcessing", "MinVisits"])[1]
+    minYears = config.get_param(["DataProcessing", "MinYears"])[1]
+
     # Create the files to record the generated datasets in.
     outputFiles = file_generator.open_files(dirOutput, validCodes | {"_ID", "_Age", "_Gender"})
 
@@ -124,7 +128,7 @@ def main(dirProcessedData, dirOutput, config):
 
                 # Output the patient's information.
                 patientGender = validPatientData[currentPatient]["Gender"]
-                save_patient_data.main(currentPatient, patientHistory, patientGender, outputFiles)
+                save_patient_data.main(currentPatient, patientHistory, patientGender, outputFiles, minVisits, minYears)
                 patientHistory = []
             currentPatient = patientID  # Update the current patient's ID to be this patient's.
 
@@ -137,7 +141,7 @@ def main(dirProcessedData, dirOutput, config):
         # Record the final patient's data if they are meant to have data extracted.
         if currentPatient in validPatientData:
             patientGender = validPatientData[currentPatient]["Gender"]
-            save_patient_data.main(currentPatient, patientHistory, patientGender, outputFiles)
+            save_patient_data.main(currentPatient, patientHistory, patientGender, outputFiles, minVisits, minYears)
 
         # Close the open files.
         file_generator.close_files(outputFiles)
