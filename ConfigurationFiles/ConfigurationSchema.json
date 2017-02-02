@@ -26,6 +26,18 @@
           "description": "The converter to use to create the flat file dataset.",
           "type": "string"
         },
+        "MinCodes": {
+          "default": 0,
+          "description": "The minimum number of valid codes a patient must be associated with before they will be used.",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "MinPatients": {
+          "default": 0,
+          "description": "The minimum number of valid patients a code must be associated with before it will be used.",
+          "minimum": 0,
+          "type": "integer"
+        },
         "MinVisits": {
           "default": 0,
           "description": "The minimum number of unique dates a patient must have records for in order for their visit data to be saved.",

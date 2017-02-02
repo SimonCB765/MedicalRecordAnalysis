@@ -3,6 +3,8 @@
     "CodesToIgnore": [],
     "CodesToKeep": [],
     "Converter": "JournalTable",
+    "MinCodes": 0,
+    "MinPatients": 0,
     "MinVisits": 0,
     "MinYears": 0,
     "PatientsToIgnore": [],

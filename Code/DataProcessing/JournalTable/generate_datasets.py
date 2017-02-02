@@ -1,6 +1,7 @@
 """Generate datasets from pre-processed SQL dump files."""
 
 # Python imports.
+from collections import defaultdict
 import logging
 import os
 import re
@@ -60,9 +61,14 @@ def main(dirProcessedData, dirOutput, config):
     codesToKeep = ["{:s}$".format(i) for i in config.get_param(["DataProcessing", "CodesToKeep"])[1]]
     codesToKeep = re.compile('|'.join(codesToKeep)) if codesToKeep else re.compile("")
 
+    # Determine the minimum number of valid codes a patient must be associated with and the minimum number of valid
+    # patients a code must be associated with before it is kept.
+    minCodes = config.get_param(["DataProcessing", "MinCodes"])[1]
+    minPatients = config.get_param(["DataProcessing", "MinPatients"])[1]
+
     # Extract the patient demographics and determine which patients should be used.
     validPatientData = {}
-    validCodes = set()  # Valid codes (kept and not ignored) that are contained within a valid patient's history.
+    patientsPerCode = defaultdict(int)
     with open(filePatientData, 'r') as fidPatientData:
         _ = fidPatientData.readline()  # Strip the header.
         for line in fidPatientData:
@@ -73,11 +79,16 @@ def main(dirProcessedData, dirOutput, config):
             codesPatientHas = chunks[3].split(',')
             validCodesPatientHas = [i for i in codesPatientHas if codesToKeep.match(i) and (not codesToIgnore.match(i))]
 
-            if patientsToKeep.match(patientID) and (not patientsToIgnore.match(patientID)) and validCodesPatientHas:
-                # Only record a patient if they are to be used, not to be ignored and are associated with a code that
-                # is to be kept and not ignored.
-                validCodes.update(validCodesPatientHas)
+            if patientsToKeep.match(patientID) and (not patientsToIgnore.match(patientID)) and \
+                            len(validCodesPatientHas) >= minCodes:
+                # Only record a patient if they are to be used, not to be ignored and are associated with enough codes
+                # that are to be kept and not ignored.
+                for i in validCodesPatientHas:
+                    patientsPerCode[i] += 1
                 validPatientData[patientID] = {"YearOfBirth": yearOfBirth, "Gender": patientGender}
+
+    # Determine the valid codes (kept and not ignored) that are contained within a valid patient's history.
+    validCodes = {i for i in patientsPerCode if patientsPerCode[i] >= minPatients}
 
     # Extract the information about whether codes have any values associated with them.
     codeAssociatedValues = {}

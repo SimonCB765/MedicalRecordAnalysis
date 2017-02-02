@@ -1,5 +1,9 @@
 # MedicalRecordAnalysis
 
+## Notes
+The min codes, patients, visits and years are all set to be >=, so if the value is 0 all will be selected.
+The combination of min codes and patients can cause patients with fewer codes than the specified min to be kept. For example, patient P has 10 codes associated with them. The min codes is 10 and min patients is 10. If at least one of the 10 codes associated with P is associated with fewer than 10 patients, then P will be kept (as they're associated with 10 codes) but some of their codes will disappear, leaving P with fewer than 10 codes in the dataset.
+
 ## Datasets Generated
 
 The datasets generated can be split based on the type of data recorded and how the time steps are determined.
