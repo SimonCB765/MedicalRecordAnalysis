@@ -41,7 +41,7 @@ parser.add_argument("-n", "--noProcess",
                     action="store_true",
                     help="Whether the data should be prevented from being processed. Default: data can be processed.")
 parser.add_argument("-o", "--output",
-                    help="The location of the directory to save the sharded output to. Default: a top level "
+                    help="The location of the directory to save the output to. Default: a top level "
                          "directory called Results.",
                     type=str)
 parser.add_argument("-w", "--overwrite",
